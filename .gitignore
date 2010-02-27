@@ -1,0 +1,20 @@
+# wildcard patterns
+*.o
+.deps
+Makefile
+Makefile.in
+
+# /
+/.dep.inc
+/aclocal.m4
+/autom4te.cache
+/build-aux
+/config.*
+/configure
+/Makefile-cchat.mk
+/nbproject
+/stamp-h1
+
+# /src
+/src/cchat
+
