@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../../src/common/arraylist.h"
+#include "common/arraylist.h"
 
 void show_array(ArrayList *array);
 

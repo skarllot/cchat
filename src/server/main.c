@@ -25,7 +25,6 @@
 #include <signal.h>
 
 #include "chatserver.h"
-#include "../common/arraylist.h"
 
 ChatServer *server;
 void on_signal(int);

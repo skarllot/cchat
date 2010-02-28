@@ -1,6 +1,9 @@
 # wildcard patterns
+*.la
+*.lo
 *.o
 .deps
+.libs
 Makefile
 Makefile.in
 
@@ -11,9 +14,17 @@ Makefile.in
 /build-aux
 /config.*
 /configure
+/libtool
 /Makefile-cchat.mk
 /nbproject
 /stamp-h1
+
+# /m4
+/m4/libtool.m4
+/m4/lt~obsolete.m4
+/m4/ltoptions.m4
+/m4/ltsugar.m4
+/m4/ltversion.m4
 
 # /src/client
 /src/client/cchat-client

@@ -21,7 +21,7 @@
 #ifndef _CHATSERVER_H
 #define	_CHATSERVER_H
 
-#include "../common/basic.h"
+#include "common/basic.h"
 
 typedef struct _ChatServer ChatServer;
 typedef struct _ChatServer_private ChatServer_private;

@@ -19,7 +19,7 @@
  */
 
 #include "chatserver.h"
-#include "src/common/arraylist.h"
+#include "common/arraylist.h"
 
 #include <pthread.h>
 #include <stdio.h>
