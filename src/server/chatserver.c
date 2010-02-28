@@ -49,7 +49,7 @@ ChatServer *ChatServer_init(ChatServer *this)
 
     this->priv = (ChatServer_private *)malloc(sizeof(ChatServer_private));
     this->priv->serverfd = -1;
-    this->priv->clientfd_list = ArrayList_init(NULL);
+    this->priv->clientfd_list = ArrayList_init(NULL, -1);
     return this;
 }
 

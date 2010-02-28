@@ -44,10 +44,11 @@ int main(void)
 
 void on_signal(int signal)
 {
-    printf("\n\nSignal caught: %i.\n", signal);
+    printf("\n\nSignal caught: %d.\n", signal);
     
     if (signal == SIGINT) {
         ChatServer_stop(server);
+        ChatServer_free(server, TRUE);
     }
 }
 

@@ -31,14 +31,18 @@ struct _ArrayList
     ArrayList_private *priv;
 };
 
-ArrayList *ArrayList_init(ArrayList *this);
+ArrayList *ArrayList_init(ArrayList *this, int size);
 void ArrayList_free(ArrayList *this, BOOLEAN dynamic);
 
-void ArrayList_add(ArrayList *this, void *item);
+void ArrayList_add(ArrayList *this, const void *item);
 void ArrayList_clean(ArrayList *this);
-int ArrayList_getcount(ArrayList *this);
 void *ArrayList_get(ArrayList *this, int index);
+int ArrayList_getcapacity(ArrayList *this);
+int ArrayList_getcount(ArrayList *this);
+void ArrayList_insert(ArrayList *this, int index, const void *item);
 void ArrayList_remove(ArrayList *this, int index);
+void ArrayList_set(ArrayList *this, int index, const void *item);
+void ArrayList_trim(ArrayList *this);
 
 #endif	/* _ARRAYLIST_H */
 

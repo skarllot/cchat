@@ -30,10 +30,10 @@ struct _ArrayList_private
     int num_allocated;
 };
 
-static void ArrayList_alloc(ArrayList *this);
-static void ArrayList_check(ArrayList *this);
+static void ArrayList_alloc(ArrayList *this, int size);
+static void ArrayList_validateindex(ArrayList *this, int index);
 
-ArrayList *ArrayList_init(ArrayList *this)
+ArrayList *ArrayList_init(ArrayList *this, int size)
 {
     if (this == NULL) {
         this = (ArrayList *)malloc(sizeof(ArrayList));
@@ -43,7 +43,7 @@ ArrayList *ArrayList_init(ArrayList *this)
     this->priv->data = NULL;
     this->priv->num_elements = 0;
     this->priv->num_allocated = 0;
-    ArrayList_alloc(this);
+    ArrayList_alloc(this, size);
 
     return this;
 }
@@ -58,9 +58,9 @@ void ArrayList_free(ArrayList* this, BOOLEAN dynamic)
     }
 }
 
-void ArrayList_add(ArrayList *this, void *item)
+void ArrayList_add(ArrayList *this, const void *item)
 {
-    ArrayList_check(this);
+    ArrayList_alloc(this, this->priv->num_elements + 1);
     
     this->priv->data[this->priv->num_elements] = item;
     this->priv->num_elements++;
@@ -78,12 +78,13 @@ void ArrayList_clean(ArrayList* this)
 
 void *ArrayList_get(ArrayList *this, int index)
 {
-    if (index < 0 || index >= this->priv->num_elements) {
-        fprintf(stderr, "Out of range array index\n");
-        exit(EXIT_FAILURE);
-    }
-
+    ArrayList_validateindex(this, index);
     return this->priv->data[index];
+}
+
+int ArrayList_getcapacity(ArrayList* this)
+{
+    return this->priv->num_allocated;
 }
 
 int ArrayList_getcount(ArrayList* this)
@@ -91,12 +92,22 @@ int ArrayList_getcount(ArrayList* this)
     return this->priv->num_elements;
 }
 
+void ArrayList_insert(ArrayList* this, int index, const void* item)
+{
+    ArrayList_validateindex(this, index);
+    ArrayList_alloc(this, this->priv->num_elements + 1);
+
+    int i;
+    for (i = this->priv->num_elements; i > index; --i) {
+        this->priv->data[i] = this->priv->data[i - 1];
+    }
+    this->priv->data[index] = item;
+    this->priv->num_elements++;
+}
+
 void ArrayList_remove(ArrayList* this, int index)
 {
-    if (index < 0 || index >= this->priv->num_elements) {
-        fprintf(stderr, "Out of range array index\n");
-        exit(EXIT_FAILURE);
-    }
+    ArrayList_validateindex(this, index);
 
     this->priv->num_elements--;
     int i;
@@ -106,17 +117,41 @@ void ArrayList_remove(ArrayList* this, int index)
     this->priv->data[this->priv->num_elements] = NULL;
 }
 
-void ArrayList_alloc(ArrayList* this)
+void ArrayList_set(ArrayList* this, int index, const void* item)
 {
-    if (this->priv->num_allocated == 0) {
-        this->priv->num_allocated = 3;
+    ArrayList_validateindex(this, index);
+
+    this->priv->data[index] = item;
+}
+
+void ArrayList_trim(ArrayList* this)
+{
+    void *_tmp = realloc(this->priv->data,
+                         this->priv->num_elements * sizeof(void *));
+    if (!_tmp) {
+        perror("Couldn't alloc memory");
+        exit(EXIT_FAILURE);
     }
-    else {
+
+    this->priv->data = (void **)_tmp;
+    this->priv->num_allocated = this->priv->num_elements;
+}
+
+void ArrayList_alloc(ArrayList* this, int size)
+{
+    if (size <= this->priv->num_allocated) {
+        return;
+    }
+
+    if (this->priv->num_allocated == 0) {
+        this->priv->num_allocated = 4;
+    }
+    while (size > this->priv->num_allocated) {
         this->priv->num_allocated *= 2;
     }
 
     void *_tmp = realloc(this->priv->data,
-        this->priv->num_allocated * sizeof(void *));
+                         this->priv->num_allocated * sizeof(void *));
     if (!_tmp) {
         perror("Couldn't alloc memory");
         exit(EXIT_FAILURE);
@@ -125,9 +160,10 @@ void ArrayList_alloc(ArrayList* this)
     this->priv->data = (void **)_tmp;
 }
 
-void ArrayList_check(ArrayList* this)
+void ArrayList_validateindex(ArrayList* this, int index)
 {
-    if (this->priv->num_elements == this->priv->num_allocated) {
-        ArrayList_alloc(this);
+    if (index < 0 || index >= this->priv->num_elements) {
+        fprintf(stderr, "Out of range array index\n");
+        exit(EXIT_FAILURE);
     }
 }
