@@ -18,25 +18,27 @@
  *
  */
 
-#ifndef _CHATSERVER_H
-#define	_CHATSERVER_H
+#ifndef _ARRAYLIST_H
+#define	_ARRAYLIST_H
 
-#include "../common/basic.h"
+#include "basic.h"
 
-typedef struct _ChatServer ChatServer;
-typedef struct _ChatServer_private ChatServer_private;
+typedef struct _ArrayList ArrayList;
+typedef struct _ArrayList_private ArrayList_private;
 
-struct _ChatServer
+struct _ArrayList
 {
-    ChatServer_private *priv;
+    ArrayList_private *priv;
 };
 
-ChatServer *ChatServer_init(ChatServer *this);
-void ChatServer_free(ChatServer *this, BOOLEAN dynamic);
+ArrayList *ArrayList_init(ArrayList *this);
+void ArrayList_free(ArrayList *this, BOOLEAN dynamic);
 
-void ChatServer_load(ChatServer *this);
-void ChatServer_start(ChatServer *this);
-void ChatServer_stop(ChatServer *this);
+void ArrayList_add(ArrayList *this, void *item);
+void ArrayList_clean(ArrayList *this);
+int ArrayList_getcount(ArrayList *this);
+void *ArrayList_get(ArrayList *this, int index);
+void ArrayList_remove(ArrayList *this, int index);
 
-#endif	/* _CHATSERVER_H */
+#endif	/* _ARRAYLIST_H */
 

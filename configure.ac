@@ -20,6 +20,8 @@ AC_PROG_CC
 # Checks for library functions.
 
 AC_CONFIG_FILES([Makefile
+		 tests/Makefile
+		 tests/arraylist/Makefile
                  src/Makefile
 		 src/client/Makefile
 		 src/server/Makefile])

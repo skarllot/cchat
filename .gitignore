@@ -21,3 +21,6 @@ Makefile.in
 # /src/server
 /src/server/cchat-server
 
+# /src/tests/arraylist
+/src/tests/arraylist/arraylist
+

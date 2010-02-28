@@ -19,6 +19,7 @@
  */
 
 #include "chatserver.h"
+#include "src/common/arraylist.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,7 +36,10 @@
 struct _ChatServer_private
 {
     int serverfd;
+    ArrayList *clientfd_list;
 };
+
+static void ChatServer_acceptclients(ChatServer *);
 
 ChatServer *ChatServer_init(ChatServer *this)
 {
@@ -45,11 +49,13 @@ ChatServer *ChatServer_init(ChatServer *this)
 
     this->priv = (ChatServer_private *)malloc(sizeof(ChatServer_private));
     this->priv->serverfd = -1;
+    this->priv->clientfd_list = ArrayList_init(NULL);
     return this;
 }
 
 void ChatServer_free(ChatServer *this, BOOLEAN dynamic)
 {
+    ArrayList_free(this->priv->clientfd_list, TRUE);
     free(this->priv);
 
     if (dynamic == TRUE) {
@@ -97,6 +103,17 @@ void ChatServer_start(ChatServer *this)
     }
 
     printf("Awaiting for client connections...\n");
+    ChatServer_acceptclients(this);
+}
+
+void ChatServer_stop(ChatServer *this)
+{
+    shutdown(this->priv->serverfd, SHUT_RDWR);
+    close(this->priv->serverfd);
+}
+
+void ChatServer_acceptclients(ChatServer *this)
+{
     for (;;) {
         int clientfd = accept(this->priv->serverfd, NULL, NULL);
         if (clientfd < 0) {
@@ -121,10 +138,4 @@ void ChatServer_start(ChatServer *this)
         close(clientfd);
         printf("Client disconnected.\n");
     }
-}
-
-void ChatServer_stop(ChatServer *this)
-{
-    shutdown(this->priv->serverfd, SHUT_RDWR);
-    close(this->priv->serverfd);
 }

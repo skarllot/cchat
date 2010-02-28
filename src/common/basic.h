@@ -18,25 +18,12 @@
  *
  */
 
-#ifndef _CHATSERVER_H
-#define	_CHATSERVER_H
+#ifndef _BASIC_H
+#define	_BASIC_H
 
-#include "../common/basic.h"
+#define TRUE 1
+#define FALSE 0
+typedef int BOOLEAN;
 
-typedef struct _ChatServer ChatServer;
-typedef struct _ChatServer_private ChatServer_private;
-
-struct _ChatServer
-{
-    ChatServer_private *priv;
-};
-
-ChatServer *ChatServer_init(ChatServer *this);
-void ChatServer_free(ChatServer *this, BOOLEAN dynamic);
-
-void ChatServer_load(ChatServer *this);
-void ChatServer_start(ChatServer *this);
-void ChatServer_stop(ChatServer *this);
-
-#endif	/* _CHATSERVER_H */
+#endif	/* _BASIC_H */
 
