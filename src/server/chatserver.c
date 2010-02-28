@@ -21,6 +21,7 @@
 #include "chatserver.h"
 #include "src/common/arraylist.h"
 
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,13 +34,22 @@
 
 #define DEFAULT_PORT 1100
 
+#define COMMANDS_EXIT "EXIT\r\n"
+
 struct _ChatServer_private
 {
     int serverfd;
     ArrayList *clientfd_list;
 };
 
+typedef struct
+{
+    ChatServer *instance;
+    int clientindex;
+} ThreadContext;
+
 static void ChatServer_acceptclients(ChatServer *);
+static void *ChatServer_clienttalk(void *context);
 
 ChatServer *ChatServer_init(ChatServer *this)
 {
@@ -123,19 +133,45 @@ void ChatServer_acceptclients(ChatServer *this)
         }
         printf("Client connected.\n");
 
-        char mymsg[] = "I'm the server!\n";
+        ArrayList_add(this->priv->clientfd_list, &clientfd);
+        ThreadContext *context = (ThreadContext *)malloc(sizeof(ThreadContext));
+        context->instance = this;
+        context->clientindex = ArrayList_getcount(
+                this->priv->clientfd_list) - 1;
+
+        pthread_t thread;
+        pthread_create(&thread, NULL, ChatServer_clienttalk, context);
+    }
+}
+
+void *ChatServer_clienttalk(void* context)
+{
+    ThreadContext *tcontext = (ThreadContext *)context;
+    int clientfd = *(int *)ArrayList_get(
+        tcontext->instance->priv->clientfd_list, tcontext->clientindex);
+
+    while (TRUE) {
+        char mymsg[] = "Command: ";
         if (write(clientfd, mymsg, strlen(mymsg)) < 0) {
             perror("Cannot send message to client");
+            break;
         }
+
         char climsg[256];
         bzero(climsg, 256);
         if (read(clientfd, climsg, 255) < 0) {
             perror("Cannot receive message from client");
+            break;
+        }
+
+        if (strcmp(climsg, COMMANDS_EXIT) == 0) {
+            break;
         }
         printf("Client message: %s\n", climsg);
-
-        shutdown(clientfd, SHUT_RDWR);
-        close(clientfd);
-        printf("Client disconnected.\n");
     }
+
+    shutdown(clientfd, SHUT_RDWR);
+    close(clientfd);
+    printf("Client disconnected.\n");
+    pthread_exit(NULL);
 }

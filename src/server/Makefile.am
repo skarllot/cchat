@@ -8,3 +8,5 @@ main.c \
 chatserver.h \
 chatserver.c
 
+cchat_server_LDFLAGS = -pthread
+
