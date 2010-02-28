@@ -20,5 +20,7 @@ AC_PROG_CC
 # Checks for library functions.
 
 AC_CONFIG_FILES([Makefile
-                 src/Makefile])
+                 src/Makefile
+		 src/client/Makefile
+		 src/server/Makefile])
 AC_OUTPUT

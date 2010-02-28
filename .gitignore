@@ -15,6 +15,9 @@ Makefile.in
 /nbproject
 /stamp-h1
 
-# /src
-/src/cchat
+# /src/client
+/src/client/cchat-client
+
+# /src/server
+/src/server/cchat-server
 
