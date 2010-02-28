@@ -18,35 +18,27 @@
  *
  */
 
-#include <config.h>
-#include <stdio.h>
-#include <stdlib.h>
+#ifndef _CHATSERVER_H
+#define	_CHATSERVER_H
 
-#include <signal.h>
+#define TRUE 1
+#define FALSE 0
+typedef int BOOLEAN;
 
-#include "chatserver.h"
+typedef struct _ChatServer ChatServer;
+typedef struct _ChatServer_private ChatServer_private;
 
-ChatServer *server;
-void on_signal(int);
-
-int main(void)
+struct _ChatServer
 {
-    signal(SIGINT, on_signal);
+    ChatServer_private *priv;
+};
 
-    server = ChatServer_init(NULL);
-    ChatServer_load(server);
-    ChatServer_start(server);
-    ChatServer_free(server, TRUE);
-    
-    return EXIT_SUCCESS;
-}
+ChatServer *ChatServer_init(ChatServer *this);
+void ChatServer_free(ChatServer *this, BOOLEAN dynamic);
 
-void on_signal(int signal)
-{
-    printf("\n\nSignal caught: %i.\n", signal);
-    
-    if (signal == SIGINT) {
-        ChatServer_stop(server);
-    }
-}
+void ChatServer_load(ChatServer *this);
+void ChatServer_start(ChatServer *this);
+void ChatServer_stop(ChatServer *this);
+
+#endif	/* _CHATSERVER_H */
 
