@@ -23,8 +23,6 @@
 
 #include <pthread.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -54,10 +52,10 @@ static void *ChatServer_clienttalk(void *context);
 ChatServer *ChatServer_init(ChatServer *this)
 {
     if (this == NULL) {
-        this = (ChatServer *)malloc(sizeof(ChatServer));
+        NEW(this, ChatServer);
     }
 
-    this->priv = (ChatServer_private *)malloc(sizeof(ChatServer_private));
+    NEW(this->priv, ChatServer_private);
     this->priv->serverfd = -1;
     this->priv->clientfd_list = ArrayList_init(NULL, -1);
     return this;
@@ -65,6 +63,13 @@ ChatServer *ChatServer_init(ChatServer *this)
 
 void ChatServer_free(ChatServer *this, BOOLEAN dynamic)
 {
+    int count = ArrayList_getcount(this->priv->clientfd_list);
+    int i;
+    for (i = count - 1; i >= 0; --i) {
+        int *item = (int *)ArrayList_remove(this->priv->clientfd_list, i);
+        free(item);
+    }
+    
     ArrayList_free(this->priv->clientfd_list, TRUE);
     free(this->priv);
 
@@ -125,16 +130,17 @@ void ChatServer_stop(ChatServer *this)
 void ChatServer_acceptclients(ChatServer *this)
 {
     for (;;) {
-        int clientfd = accept(this->priv->serverfd, NULL, NULL);
-        if (clientfd < 0) {
+        int *clientfd = (int *)malloc(sizeof(int));
+        *clientfd = accept(this->priv->serverfd, NULL, NULL);
+        if (*clientfd < 0) {
             perror("Error accepting client connection");
             close(this->priv->serverfd);
             exit(EXIT_FAILURE);
         }
         printf("Client connected.\n");
 
-        ArrayList_add(this->priv->clientfd_list, &clientfd);
-        ThreadContext *context = (ThreadContext *)malloc(sizeof(ThreadContext));
+        ArrayList_add(this->priv->clientfd_list, clientfd);
+        NEW_I(context, ThreadContext);
         context->instance = this;
         context->clientindex = ArrayList_getcount(
                 this->priv->clientfd_list) - 1;
@@ -173,5 +179,7 @@ void *ChatServer_clienttalk(void* context)
     shutdown(clientfd, SHUT_RDWR);
     close(clientfd);
     printf("Client disconnected.\n");
+
+    free(context);
     pthread_exit(NULL);
 }

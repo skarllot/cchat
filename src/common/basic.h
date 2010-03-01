@@ -19,11 +19,21 @@
  */
 
 #ifndef _BASIC_H
-#define	_BASIC_H
+#define _BASIC_H
+
+#include <stdlib.h>
+#include <string.h>
+
+#define NEW(p, type) \
+    p = (type *)malloc(sizeof(type)); \
+    memset(p, 0, sizeof(type));
+#define NEW_I(p, type) \
+    type *p; \
+    NEW(p, type);
 
 #define TRUE 1
 #define FALSE 0
 typedef int BOOLEAN;
 
-#endif	/* _BASIC_H */
+#endif /* _BASIC_H */
 

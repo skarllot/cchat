@@ -19,13 +19,12 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
 
 #include "arraylist.h"
 
 struct _ArrayList_private
 {
-    void **data;
+    const void **data;
     int num_elements;
     int num_allocated;
 };
@@ -36,10 +35,10 @@ static void ArrayList_validateindex(ArrayList *this, int index);
 ArrayList *ArrayList_init(ArrayList *this, int size)
 {
     if (this == NULL) {
-        this = (ArrayList *)malloc(sizeof(ArrayList));
+        NEW(this, ArrayList);
     }
 
-    this->priv = (ArrayList_private *)malloc(sizeof(ArrayList_private));
+    NEW(this->priv, ArrayList_private);
     this->priv->data = NULL;
     this->priv->num_elements = 0;
     this->priv->num_allocated = 0;
@@ -76,7 +75,7 @@ void ArrayList_clean(ArrayList* this)
     this->priv->num_elements = 0;
 }
 
-void *ArrayList_get(ArrayList *this, int index)
+const void *ArrayList_get(ArrayList *this, int index)
 {
     ArrayList_validateindex(this, index);
     return this->priv->data[index];
@@ -105,16 +104,19 @@ void ArrayList_insert(ArrayList* this, int index, const void* item)
     this->priv->num_elements++;
 }
 
-void ArrayList_remove(ArrayList* this, int index)
+const void *ArrayList_remove(ArrayList* this, int index)
 {
     ArrayList_validateindex(this, index);
 
+    const void *ret = this->priv->data[index];
     this->priv->num_elements--;
     int i;
     for (i = index; i < this->priv->num_elements; ++i) {
         this->priv->data[i] = this->priv->data[i + 1];
     }
     this->priv->data[this->priv->num_elements] = NULL;
+
+    return ret;
 }
 
 void ArrayList_set(ArrayList* this, int index, const void* item)
@@ -133,7 +135,7 @@ void ArrayList_trim(ArrayList* this)
         exit(EXIT_FAILURE);
     }
 
-    this->priv->data = (void **)_tmp;
+    this->priv->data = (const void **)_tmp;
     this->priv->num_allocated = this->priv->num_elements;
 }
 
@@ -157,7 +159,7 @@ void ArrayList_alloc(ArrayList* this, int size)
         exit(EXIT_FAILURE);
     }
 
-    this->priv->data = (void **)_tmp;
+    this->priv->data = (const void **)_tmp;
 }
 
 void ArrayList_validateindex(ArrayList* this, int index)
