@@ -35,10 +35,10 @@ static void ArrayList_validateindex(ArrayList *this, int index);
 ArrayList *ArrayList_init(ArrayList *this, int size)
 {
     if (this == NULL) {
-        NEW(this, ArrayList);
+        MALLOC(this, ArrayList);
     }
 
-    NEW(this->priv, ArrayList_private);
+    MALLOC(this->priv, ArrayList_private);
     this->priv->data = NULL;
     this->priv->num_elements = 0;
     this->priv->num_allocated = 0;

@@ -52,10 +52,10 @@ static void *ChatServer_clienttalk(void *context);
 ChatServer *ChatServer_init(ChatServer *this)
 {
     if (this == NULL) {
-        NEW(this, ChatServer);
+        MALLOC(this, ChatServer);
     }
 
-    NEW(this->priv, ChatServer_private);
+    MALLOC(this->priv, ChatServer_private);
     this->priv->serverfd = -1;
     this->priv->clientfd_list = ArrayList_init(NULL, -1);
     return this;
@@ -140,7 +140,7 @@ void ChatServer_acceptclients(ChatServer *this)
         printf("Client connected.\n");
 
         ArrayList_add(this->priv->clientfd_list, clientfd);
-        NEW_I(context, ThreadContext);
+        MALLOC_I(context, ThreadContext);
         context->instance = this;
         context->clientindex = ArrayList_getcount(
                 this->priv->clientfd_list) - 1;

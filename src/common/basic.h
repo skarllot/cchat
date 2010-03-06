@@ -24,12 +24,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define NEW(p, type) \
+// Alloc memory and fill it with zeros
+#define MALLOC(p, type) \
     p = (type *)malloc(sizeof(type)); \
     memset(p, 0, sizeof(type));
-#define NEW_I(p, type) \
+// Create a pointer, alloc memory and fill it with zeros
+#define MALLOC_I(p, type) \
     type *p; \
-    NEW(p, type);
+    MALLOC(p, type);
+// Fill a memory space with zeros and free it (secure)
+#define SFREE(p, type) \
+    memset(p, 0, sizeof(type)); \
+    free(p);
 
 #define TRUE 1
 #define FALSE 0
