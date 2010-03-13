@@ -23,12 +23,14 @@
 
 #include "common/arraylist.h"
 
+// Shows up array list items.
 void show_array(ArrayList *array);
 
 int main(void)
 {
     int a = 15, b = 22, c = 84, d = 23, e = 9, f = 212;
 
+    // Test array list methods
     ArrayList *array = ArrayList_init(NULL, -1);
     ArrayList_add(array, &a);
     ArrayList_add(array, &b);
@@ -50,6 +52,7 @@ int main(void)
     
     ArrayList_free(array, TRUE);
 
+    // Test array list string handling
     char *msg1 = "First message";
     ArrayList *array2 = ArrayList_init(NULL, -1);
     ArrayList_add(array2, msg1);

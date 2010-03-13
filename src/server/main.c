@@ -31,6 +31,7 @@ void on_signal(int);
 
 int main(void)
 {
+    // Catch CTRL+C
     signal(SIGINT, on_signal);
 
     server = ChatServer_init(NULL);

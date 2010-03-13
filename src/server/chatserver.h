@@ -34,8 +34,14 @@ struct _ChatServer
 ChatServer *ChatServer_init(ChatServer *this);
 void ChatServer_free(ChatServer *this, BOOLEAN dynamic);
 
+/** Loads server internals.
+ */
 void ChatServer_load(ChatServer *this);
+/** Starts server awaiting for client connections.
+ */
 void ChatServer_start(ChatServer *this);
+/** Stops server closing all client connections.
+ */
 void ChatServer_stop(ChatServer *this);
 
 #endif	/* _CHATSERVER_H */

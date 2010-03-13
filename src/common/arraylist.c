@@ -29,7 +29,9 @@ struct _ArrayList_private
     int num_allocated;
 };
 
+// Allocs more space if requested size is greater than allocated
 static void ArrayList_alloc(ArrayList *this, int size);
+// Check if requested index is a valid index into specified array list.
 static void ArrayList_validateindex(ArrayList *this, int index);
 
 ArrayList *ArrayList_init(ArrayList *this, int size)
@@ -94,9 +96,11 @@ int ArrayList_getcount(ArrayList* this)
 void ArrayList_insert(ArrayList* this, int index, const void* item)
 {
     ArrayList_validateindex(this, index);
+    // ensure space to the new item
     ArrayList_alloc(this, this->priv->num_elements + 1);
 
     int i;
+    // Shifts items to the right
     for (i = this->priv->num_elements; i > index; --i) {
         this->priv->data[i] = this->priv->data[i - 1];
     }
@@ -111,6 +115,7 @@ const void *ArrayList_remove(ArrayList* this, int index)
     const void *ret = this->priv->data[index];
     this->priv->num_elements--;
     int i;
+    // Shifts items to the left
     for (i = index; i < this->priv->num_elements; ++i) {
         this->priv->data[i] = this->priv->data[i + 1];
     }
@@ -141,13 +146,16 @@ void ArrayList_trim(ArrayList* this)
 
 void ArrayList_alloc(ArrayList* this, int size)
 {
+    // Check whether already have enough space
     if (size <= this->priv->num_allocated) {
         return;
     }
 
+    // Allocate space to 4 items iniatially
     if (this->priv->num_allocated == 0) {
         this->priv->num_allocated = 4;
     }
+    // Double allocated space while have not enough space
     while (size > this->priv->num_allocated) {
         this->priv->num_allocated *= 2;
     }
@@ -164,8 +172,11 @@ void ArrayList_alloc(ArrayList* this, int size)
 
 void ArrayList_validateindex(ArrayList* this, int index)
 {
+    // Exits program if a invalid index is specified.
     if (index < 0 || index >= this->priv->num_elements) {
+        // TODO: Needs a exception handler.
         fprintf(stderr, "Out of range array index\n");
         exit(EXIT_FAILURE);
     }
 }
+
