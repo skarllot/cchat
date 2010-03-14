@@ -59,6 +59,7 @@ int main(void)
     printf("array2[%d] = %s\n", 0, (char *)ArrayList_get(array2, 0));
     printf("array2[%d][%d] = %c\n", 0, 2,
            ((char *)ArrayList_get(array2, 0))[2]);
+    ArrayList_free(array2, TRUE);
 
     return 0;
 }

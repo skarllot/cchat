@@ -33,29 +33,60 @@ int main(void)
     char str4[] = "€ÁÉÍÓÚÜ";
     char str5[] = "Á€ÉÍÓÚÜ";
     char str6[] = "Á𤭢ÉÍÓÚÜ";
-    String *mystr = String_init(NULL, str1);
-    show_string(mystr);
 
-    String *mystr2 = String_concat(mystr, String_init(NULL, str2));
-    show_string(mystr2);
+    String *tmpstr1, *tmpstr2;
 
-    String *mystr3 = String_substring(mystr2, 26, 26);
-    show_string(mystr3);
+    // =========================================================================
+    tmpstr1 = String_init(NULL, str1);
+    show_string(tmpstr1);
 
-    String *mystr4 = String_init(NULL, str3);
-    show_string(mystr4);
+    // =========================================================================
+    tmpstr2 = String_concat(tmpstr1, String_init(NULL, str2));  // <-- mem leak
+    show_string(tmpstr2);
 
-    String *mystr5 = String_substring(mystr4, 6, 3);
-    show_string(mystr5);
+    String_free(tmpstr1, TRUE);
 
-    String *mystr6 = String_init(NULL, str4);
-    show_string(String_substring(mystr6, 0, 3));
+    // =========================================================================
+    tmpstr1 = String_substring(tmpstr2, 26, 26);
+    show_string(tmpstr1);
 
-    String *mystr7 = String_init(NULL, str5);
-    show_string(String_substring(mystr7, 0, 3));
+    String_free(tmpstr2, TRUE);
+    String_free(tmpstr1, TRUE);
 
-    String *mystr8 = String_init(NULL, str6);
-    show_string(String_substring(mystr8, 0, 4));
+    // =========================================================================
+    tmpstr1 = String_init(NULL, str3);
+    show_string(tmpstr1);
+
+    // =========================================================================
+    tmpstr2 = String_substring(tmpstr1, 6, 3);
+    show_string(tmpstr2);
+
+    String_free(tmpstr2, TRUE);
+    String_free(tmpstr1, TRUE);
+
+    // =========================================================================
+    tmpstr1 = String_init(NULL, str4);
+    tmpstr2 = String_substring(tmpstr1, 0, 3);
+    show_string(tmpstr2);
+
+    String_free(tmpstr2, TRUE);
+    String_free(tmpstr1, TRUE);
+
+    // =========================================================================
+    tmpstr1 = String_init(NULL, str5);
+    tmpstr2 = String_substring(tmpstr1, 0, 3);
+    show_string(tmpstr2);
+
+    String_free(tmpstr2, TRUE);
+    String_free(tmpstr1, TRUE);
+
+    // =========================================================================
+    tmpstr1 = String_init(NULL, str6);
+    tmpstr2 = String_substring(tmpstr1, 0, 4);
+    show_string(tmpstr2);
+
+    String_free(tmpstr2, TRUE);
+    String_free(tmpstr1, TRUE);
 
     return 0;
 }
