@@ -3,7 +3,9 @@ AM_CFLAGS = -Wall
 noinst_LTLIBRARIES = libcchat-common.la
 
 libcchat_common_la_SOURCES = \
-basic.h \
-arraylist.h \
-arraylist.c
+	arraylist.h \
+	arraylist.c \
+	basic.h \
+	cstring.h \
+	cstring.c
 

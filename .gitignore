@@ -36,3 +36,6 @@ Makefile.in
 # /tests/arraylist
 /tests/arraylist/arraylist
 
+# /tests/string
+/tests/string/string
+

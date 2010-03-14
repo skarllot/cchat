@@ -59,9 +59,11 @@ int main(void)
     printf("array2[%d] = %s\n", 0, (char *)ArrayList_get(array2, 0));
     printf("array2[%d][%d] = %c\n", 0, 2,
            ((char *)ArrayList_get(array2, 0))[2]);
+
+    return 0;
 }
 
-void show_array(ArrayList* array)
+void show_array(ArrayList *array)
 {
     printf("=========================\n");
     printf("Count: %d, Capacity: %d\n", ArrayList_getcount(array),
