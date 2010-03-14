@@ -22,14 +22,15 @@
 #include <stdio.h>
 
 // Count characters from UTF-8 string.
-static int strlen_utf8(char *s);
+static int strlen_utf8(const char *s);
 // Count bytes by given length from UTF-8 string.
-static int strlentosize_utf8(char *s, int len);
+static int strlen_utf8_bytes(const char *s, int len);
 
 struct _String_private
 {
     char *string;
     int length;
+    int capacity;
     // CHANGE: concat(), substring().
 };
 
@@ -41,13 +42,18 @@ String *String_init(String *this, const char *str)
 
     MALLOC(this->priv, String_private);
     if (str != NULL) {
-        this->priv->string = (char *)malloc(strlen(str) + 1);
-        memset(this->priv->string, 0, sizeof(this->priv->string));
+        int lenbytes = strlen(str) + 1;
+
+        this->priv->string = (char *)malloc(lenbytes);
+        memset(this->priv->string, 0, lenbytes);
         strcpy(this->priv->string, str);
+
         this->priv->length = strlen_utf8(str);
+        this->priv->capacity = lenbytes;
     }
     else {
         this->priv->length = -1;
+        this->priv->capacity = 0;
     }
     return this;
 }
@@ -73,6 +79,7 @@ String *String_concat(String *str1, String *str2)
     String *ret = String_init(NULL, NULL);
     ret->priv->string = newstr;
     ret->priv->length = strlen_utf8(newstr);
+    ret->priv->capacity = tsize;
     return ret;
 }
 
@@ -94,8 +101,8 @@ String *String_substring(String *this, int index, int length)
         exit(EXIT_FAILURE);
     }
 
-    int realidx = strlentosize_utf8(this->priv->string, index);
-    int reallen = strlentosize_utf8(&this->priv->string[realidx], length);
+    int realidx = strlen_utf8_bytes(this->priv->string, index);
+    int reallen = strlen_utf8_bytes(&this->priv->string[realidx], length);
 
     char *newstr = (char *)malloc(reallen + 1);
     memset(newstr, 0, reallen + 1);
@@ -104,11 +111,12 @@ String *String_substring(String *this, int index, int length)
     String *ret = String_init(NULL, NULL);
     ret->priv->string = newstr;
     ret->priv->length = strlen_utf8(newstr);
+    ret->priv->capacity = reallen + 1;
     return ret;
 }
 
-// See http://en.wikipedia.org/wiki/UTF-8
-int strlen_utf8(char *s)
+// See http://en.wikipedia.org/wiki/UTF-8#Description
+int strlen_utf8(const char *s)
 {
     int i = 0, j = 0;
     while (s[i]) {
@@ -118,15 +126,17 @@ int strlen_utf8(char *s)
     return j;
 }
 
-int strlentosize_utf8(char *s, int len)
+// See http://en.wikipedia.org/wiki/UTF-8#Description
+int strlen_utf8_bytes(const char *s, int len)
 {
     int i = 0;
     while (len != 0) {
         if (!s[i]) return -1;
-        if ((s[i] & 0x80) == 0x00) len--;
-        if ((s[i] & 0xc0) == 0x80) len--;
+
+        if ((s[i] & 0x80) == 0x00 || (s[i] & 0xc0) == 0x80) len--;
         else if ((s[i] & 0xf0) == 0xe0) i++;
         else if ((s[i] & 0xf8) == 0xf0) i += 2;
+
         i++;
     }
     return i;
