@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009 Fabrício Godoy <skarllot@gmail.com>
+ * Copyright (C) 2010 Fabrício Godoy <skarllot@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,30 +19,30 @@
  */
 
 #ifndef _CHATSERVER_H
-#define	_CHATSERVER_H
+#define _CHATSERVER_H
 
 #include "common/basic.h"
 
-typedef struct _ChatServer ChatServer;
-typedef struct _ChatServer_private ChatServer_private;
+typedef struct _chatserver_t chatserver_t;
+typedef struct _chatserver_it chatserver_it;
 
-struct _ChatServer
+struct _chatserver_t
 {
-    ChatServer_private *priv;
+    chatserver_it *priv;
 };
 
-ChatServer *ChatServer_init(ChatServer *this);
-void ChatServer_free(ChatServer *this, BOOLEAN dynamic);
+chatserver_t *chatserver_create();
+void chatserver_free(chatserver_t *csrv);
 
 /** Loads server internals.
  */
-void ChatServer_load(ChatServer *this);
+void chatserver_load(chatserver_t *csrv);
 /** Starts server awaiting for client connections.
  */
-void ChatServer_start(ChatServer *this);
+void chatserver_start(chatserver_t *csrv);
 /** Stops server closing all client connections.
  */
-void ChatServer_stop(ChatServer *this);
+void chatserver_stop(chatserver_t *csrv);
 
-#endif	/* _CHATSERVER_H */
+#endif /* _CHATSERVER_H */
 

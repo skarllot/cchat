@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009 Fabrício Godoy <skarllot@gmail.com>
+ * Copyright (C) 2010 Fabrício Godoy <skarllot@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,68 +34,67 @@
 
 #define COMMANDS_EXIT "EXIT\r\n"
 
-struct _ChatServer_private
+struct _chatserver_it
 {
     int serverfd;
+    BOOLEAN stopping;
     ArrayList *clientfd_list;
 };
 
 typedef struct
 {
-    ChatServer *instance;
+    chatserver_t *instance;
     int clientindex;
-} ThreadContext;
+} thcontext_t;
 
-static void ChatServer_acceptclients(ChatServer *);
-static void *ChatServer_clienttalk(void *context);
+static void chatserver_acceptclients(chatserver_t *);
+static void *chatserver_clienttalk(void *context);
 
-ChatServer *ChatServer_init(ChatServer *this)
+chatserver_t *chatserver_create()
 {
-    if (this == NULL) {
-        MALLOC(this, ChatServer);
-    }
+    chatserver_t *csrv;
+    MALLOC(csrv, chatserver_t);
 
-    MALLOC(this->priv, ChatServer_private);
-    this->priv->serverfd = -1;
-    this->priv->clientfd_list = ArrayList_init(NULL, -1);
-    return this;
+    MALLOC(csrv->priv, chatserver_it);
+    csrv->priv->serverfd = -1;
+    csrv->priv->stopping = FALSE;
+    csrv->priv->clientfd_list = ArrayList_init(NULL, -1);
+    return csrv;
 }
 
-void ChatServer_free(ChatServer *this, BOOLEAN dynamic)
+void chatserver_free(chatserver_t *csrv)
 {
-    int count = ArrayList_getcount(this->priv->clientfd_list);
+    int count = ArrayList_getcount(csrv->priv->clientfd_list);
     int i;
     for (i = count - 1; i >= 0; --i) {
-        int *item = (int *)ArrayList_remove(this->priv->clientfd_list, i);
+        int *item = (int *)ArrayList_remove(csrv->priv->clientfd_list, i);
         free(item);
     }
     
-    ArrayList_free(this->priv->clientfd_list, TRUE);
-    free(this->priv);
+    ArrayList_free(csrv->priv->clientfd_list, TRUE);
+    free(csrv->priv);
 
-    if (dynamic == TRUE) {
-        free(this);
-    }
+    free(csrv);
 }
 
-void ChatServer_load(ChatServer *this)
+void chatserver_load(chatserver_t *csrv)
 {
-    this->priv->serverfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (this->priv->serverfd == -1) {
+    csrv->priv->serverfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (csrv->priv->serverfd == -1) {
         perror("Cannot create server socket");
         exit(EXIT_FAILURE);
     }
 
     int allowreuse = 1;
-    if (setsockopt(this->priv->serverfd, SOL_SOCKET, SO_REUSEADDR, &allowreuse,
+    if (setsockopt(csrv->priv->serverfd, SOL_SOCKET, SO_REUSEADDR, &allowreuse,
                    sizeof(allowreuse)) == -1) {
         perror("Cannot manipulate server socket");
-        close(this->priv->serverfd);
+        close(csrv->priv->serverfd);
         exit(EXIT_FAILURE);
     }
 }
 
-void ChatServer_start(ChatServer *this)
+void chatserver_start(chatserver_t *csrv)
 {
     struct sockaddr_in myaddr;
     
@@ -104,55 +103,60 @@ void ChatServer_start(ChatServer *this)
     myaddr.sin_port = htons(DEFAULT_PORT);
     myaddr.sin_addr.s_addr = INADDR_ANY;
 
-    if (bind(this->priv->serverfd, (const struct sockaddr *)&myaddr,
+    if (bind(csrv->priv->serverfd, (const struct sockaddr *)&myaddr,
              sizeof(struct sockaddr_in)) == -1) {
         perror("Cannot bind address to server socket");
-        close(this->priv->serverfd);
+        close(csrv->priv->serverfd);
         exit(EXIT_FAILURE);
     }
 
-    if (listen(this->priv->serverfd, 10) == -1) {
+    if (listen(csrv->priv->serverfd, 10) == -1) {
         perror("Cannot listen for connection using server socket");
-        close(this->priv->serverfd);
+        close(csrv->priv->serverfd);
         exit(EXIT_FAILURE);
     }
 
     printf("Awaiting for client connections...\n");
-    ChatServer_acceptclients(this);
+    chatserver_acceptclients(csrv);
 }
 
-void ChatServer_stop(ChatServer *this)
+void chatserver_stop(chatserver_t *csrv)
 {
-    shutdown(this->priv->serverfd, SHUT_RDWR);
-    close(this->priv->serverfd);
+    csrv->priv->stopping = TRUE;
+    shutdown(csrv->priv->serverfd, SHUT_RDWR);
+    close(csrv->priv->serverfd);
 }
 
-void ChatServer_acceptclients(ChatServer *this)
+void chatserver_acceptclients(chatserver_t *csrv)
 {
     for (;;) {
         int *clientfd = (int *)malloc(sizeof(int));
-        *clientfd = accept(this->priv->serverfd, NULL, NULL);
+        *clientfd = accept(csrv->priv->serverfd, NULL, NULL);
+        if (csrv->priv->stopping == TRUE && *clientfd < 0) {
+            break;
+        }
         if (*clientfd < 0) {
             perror("Error accepting client connection");
-            close(this->priv->serverfd);
+            close(csrv->priv->serverfd);
             exit(EXIT_FAILURE);
         }
         printf("Client connected.\n");
 
-        ArrayList_add(this->priv->clientfd_list, clientfd);
-        MALLOC_I(context, ThreadContext);
-        context->instance = this;
+        ArrayList_add(csrv->priv->clientfd_list, clientfd);
+        thcontext_t *context;
+        MALLOC(context, thcontext_t);
+        context->instance = csrv;
         context->clientindex = ArrayList_getcount(
-                this->priv->clientfd_list) - 1;
+                csrv->priv->clientfd_list) - 1;
 
         pthread_t thread;
-        pthread_create(&thread, NULL, ChatServer_clienttalk, context);
+        pthread_create(&thread, NULL, chatserver_clienttalk, context);
     }
 }
 
-void *ChatServer_clienttalk(void* context)
+void *chatserver_clienttalk(void *context)
 {
-    ThreadContext *tcontext = (ThreadContext *)context;
+    thcontext_t *tcontext = (thcontext_t *)context;
     int clientfd = *(int *)ArrayList_get(
         tcontext->instance->priv->clientfd_list, tcontext->clientindex);
 
@@ -164,7 +168,7 @@ void *ChatServer_clienttalk(void* context)
         }
 
         char climsg[256];
-        bzero(climsg, 256);
+        memset(climsg, 0, 256);
         if (read(clientfd, climsg, 255) < 0) {
             perror("Cannot receive message from client");
             break;
@@ -183,3 +187,4 @@ void *ChatServer_clienttalk(void* context)
     free(context);
     pthread_exit(NULL);
 }
+

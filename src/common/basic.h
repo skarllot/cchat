@@ -28,10 +28,6 @@
 #define MALLOC(p, type) \
     p = (type *)malloc(sizeof(type)); \
     memset(p, 0, sizeof(type));
-// Create a pointer, alloc memory and fill it with zeros
-#define MALLOC_I(p, type) \
-    type *p; \
-    MALLOC(p, type);
 // Fill a memory space with zeros and free it (secure)
 #define SFREE(p, type) \
     memset(p, 0, sizeof(type)); \

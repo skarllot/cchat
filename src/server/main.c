@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009 Fabrício Godoy <skarllot@gmail.com>
+ * Copyright (C) 2010 Fabrício Godoy <skarllot@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 
 #include "chatserver.h"
 
-ChatServer *server;
+chatserver_t *server;
 void on_signal(int);
 
 int main(void)
@@ -34,11 +34,11 @@ int main(void)
     // Catch CTRL+C
     signal(SIGINT, on_signal);
 
-    server = ChatServer_init(NULL);
-    ChatServer_load(server);
-    ChatServer_start(server);
-    ChatServer_free(server, TRUE);
-    
+    server = chatserver_create();
+    chatserver_load(server);
+    chatserver_start(server);
+    chatserver_free(server);
+
     return EXIT_SUCCESS;
 }
 
@@ -47,8 +47,7 @@ void on_signal(int signal)
     printf("\n\nSignal caught: %d.\n", signal);
     
     if (signal == SIGINT) {
-        ChatServer_stop(server);
-        ChatServer_free(server, TRUE);
+        chatserver_stop(server);
     }
 }
 
