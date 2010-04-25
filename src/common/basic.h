@@ -37,8 +37,8 @@
     memset(p, 0, sizeof(type)); \
     free(p);
 
-#define TRUE 1
 #define FALSE 0
+#define TRUE !(FALSE)
 typedef int BOOLEAN;
 
 #endif /* _BASIC_H */
