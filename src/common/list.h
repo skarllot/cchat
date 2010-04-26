@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009 Fabrício Godoy <skarllot@gmail.com>
+ * Copyright (C) 2010 Fabrício Godoy <skarllot@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,62 +23,62 @@
 
 #include "basic.h"
 
-typedef struct _ArrayList ArrayList;
-typedef struct _ArrayList_private ArrayList_private;
+typedef struct _list_t list_t;
+typedef struct _list_it list_it;
 
-struct _ArrayList
+struct _list_t
 {
-    ArrayList_private *priv;
+    list_it *priv;
 };
 
-ArrayList *ArrayList_init(ArrayList *this, int size);
-void ArrayList_free(ArrayList *this, BOOLEAN dynamic);
+list_t *list_create(int size);
+void list_free(list_t *lst);
 
 /** Adds a new item to array list.
  *
  * @param item The item to add.
  */
-void ArrayList_add(ArrayList *this, const void *item);
+void list_add(list_t *lst, const void *item);
 /** Remove all items from array list.
  */
-void ArrayList_clean(ArrayList *this);
+void list_clean(list_t *lst);
 /** Gets a item from array list.
  *
  * @param index Item index to get.
  * @return The requested item.
  */
-const void *ArrayList_get(ArrayList *this, int index);
+const void *list_get(list_t *lst, int index);
 /** Gets allocated space to array list.
  *
  * @return Allocated space into items count.
  */
-int ArrayList_getcapacity(ArrayList *this);
+int list_getcapacity(list_t *lst);
 /** Gets allocated items into array list.
  *
  * @return Count of allocated items.
  */
-int ArrayList_getcount(ArrayList *this);
+int list_getcount(list_t *lst);
 /** Inserts a new item into array list, without overwrite.
  *
  * @param index Index to insert the new item.
  * @param item The item to insert.
  */
-void ArrayList_insert(ArrayList *this, int index, const void *item);
+void list_insert(list_t *lst, int index, const void *item);
 /** Removes a item from array list.
  *
  * @param index Item index to remove.
  * @return Removed item.
  */
-const void *ArrayList_remove(ArrayList *this, int index);
+const void *list_remove(list_t *lst, int index);
 /** Sets a new item at specified index.
  *
  * @param index Item index to overwrite.
  * @param item The new item.
  */
-void ArrayList_set(ArrayList *this, int index, const void *item);
+void list_set(list_t *lst, int index, const void *item);
 /** Changes array list allocated space to match items count.
  */
-void ArrayList_trim(ArrayList *this);
+void list_trim(list_t *lst);
 
 #endif /* _ARRAYLIST_H */
 

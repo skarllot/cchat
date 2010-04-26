@@ -19,7 +19,7 @@
  */
 
 #include "chatserver.h"
-#include "common/arraylist.h"
+#include "common/list.h"
 
 #include <pthread.h>
 #include <stdio.h>
@@ -38,7 +38,7 @@ struct _chatserver_it
 {
     int serverfd;
     BOOLEAN stopping;
-    ArrayList *clientfd_list;
+    list_t *clientfd_list;
 };
 
 typedef struct
@@ -58,20 +58,20 @@ chatserver_t *chatserver_create()
     MALLOC(csrv->priv, chatserver_it);
     csrv->priv->serverfd = -1;
     csrv->priv->stopping = FALSE;
-    csrv->priv->clientfd_list = ArrayList_init(NULL, -1);
+    csrv->priv->clientfd_list = list_create(-1);
     return csrv;
 }
 
 void chatserver_free(chatserver_t *csrv)
 {
-    int count = ArrayList_getcount(csrv->priv->clientfd_list);
+    int count = list_getcount(csrv->priv->clientfd_list);
     int i;
     for (i = count - 1; i >= 0; --i) {
-        int *item = (int *)ArrayList_remove(csrv->priv->clientfd_list, i);
+        int *item = (int *)list_remove(csrv->priv->clientfd_list, i);
         free(item);
     }
-    
-    ArrayList_free(csrv->priv->clientfd_list, TRUE);
+
+    list_free(csrv->priv->clientfd_list);
     free(csrv->priv);
 
     free(csrv);
@@ -142,12 +142,11 @@ void chatserver_acceptclients(chatserver_t *csrv)
         }
         printf("Client connected.\n");
 
-        ArrayList_add(csrv->priv->clientfd_list, clientfd);
+        list_add(csrv->priv->clientfd_list, clientfd);
         thcontext_t *context;
         MALLOC(context, thcontext_t);
         context->instance = csrv;
-        context->clientindex = ArrayList_getcount(
-                csrv->priv->clientfd_list) - 1;
+        context->clientindex = list_getcount(csrv->priv->clientfd_list) - 1;
 
         pthread_t thread;
         pthread_create(&thread, NULL, chatserver_clienttalk, context);
@@ -157,8 +156,8 @@ void chatserver_acceptclients(chatserver_t *csrv)
 void *chatserver_clienttalk(void *context)
 {
     thcontext_t *tcontext = (thcontext_t *)context;
-    int clientfd = *(int *)ArrayList_get(
-        tcontext->instance->priv->clientfd_list, tcontext->clientindex);
+    int clientfd = *(int *)list_get(tcontext->instance->priv->clientfd_list,
+                                    tcontext->clientindex);
 
     while (TRUE) {
         char mymsg[] = "Command: ";
