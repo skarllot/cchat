@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009 Fabrício Godoy <skarllot@gmail.com>
+ * Copyright (C) 2010 Fabrício Godoy <skarllot@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,57 +21,57 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "common/arraylist.h"
+#include "common/list.h"
 
 // Shows up array list items.
-void show_array(ArrayList *array);
+void show_array(list_t *array);
 
 int main(void)
 {
     int a = 15, b = 22, c = 84, d = 23, e = 9, f = 212;
 
     // Test array list methods
-    ArrayList *array = ArrayList_init(NULL, -1);
-    ArrayList_add(array, &a);
-    ArrayList_add(array, &b);
-    ArrayList_add(array, &c);
-    ArrayList_add(array, &d);
-    ArrayList_add(array, &e);
+    list_t *array = list_create(-1);
+    list_add(array, &a);
+    list_add(array, &b);
+    list_add(array, &c);
+    list_add(array, &d);
+    list_add(array, &e);
 
     show_array(array);
-    ArrayList_remove(array, 0);
+    list_remove(array, 0);
     show_array(array);
-    ArrayList_remove(array, 2);
+    list_remove(array, 2);
     show_array(array);
-    ArrayList_trim(array);
+    list_trim(array);
     show_array(array);
-    ArrayList_insert(array, 1, &f);
+    list_insert(array, 1, &f);
     show_array(array);
-    ArrayList_set(array, 3, &a);
+    list_set(array, 3, &a);
     show_array(array);
-    
-    ArrayList_free(array, TRUE);
+
+    list_free(array);
 
     // Test array list string handling
     char *msg1 = "First message";
-    ArrayList *array2 = ArrayList_init(NULL, -1);
-    ArrayList_add(array2, msg1);
-    printf("array2[%d] = %s\n", 0, (char *)ArrayList_get(array2, 0));
+    list_t *array2 = list_create(-1);
+    list_add(array2, msg1);
+    printf("array2[%d] = %s\n", 0, (char *)list_get(array2, 0));
     printf("array2[%d][%d] = %c\n", 0, 2,
-           ((char *)ArrayList_get(array2, 0))[2]);
-    ArrayList_free(array2, TRUE);
+           ((char *)list_get(array2, 0))[2]);
+    list_free(array2);
 
     return 0;
 }
 
-void show_array(ArrayList *array)
+void show_array(list_t *array)
 {
     printf("=========================\n");
-    printf("Count: %d, Capacity: %d\n", ArrayList_getcount(array),
-           ArrayList_getcapacity(array));
+    printf("Count: %d, Capacity: %d\n", list_getcount(array),
+           list_getcapacity(array));
     int i;
-    for (i = 0; i < ArrayList_getcount(array); ++i) {
-        printf("array[%d] = %d\n", i, *(int *)ArrayList_get(array, i));
+    for (i = 0; i < list_getcount(array); ++i) {
+        printf("array[%d] = %d\n", i, *(int *)list_get(array, i));
     }
     printf("=========================\n");
 }

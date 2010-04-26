@@ -24,7 +24,7 @@ AC_PROG_CC
 
 AC_CONFIG_FILES([Makefile
 		 tests/Makefile
-		 tests/arraylist/Makefile
+		 tests/list/Makefile
 		 tests/string/Makefile
 		 src/Makefile
 		 src/client/Makefile

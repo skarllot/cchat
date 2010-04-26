@@ -1,10 +1,10 @@
 AM_CFLAGS = -Wall -I $(top_srcdir)/src
 
-check_PROGRAMS = arraylist
+check_PROGRAMS = list
 
-arraylist_SOURCES = \
+list_SOURCES = \
 	main.c
 
-arraylist_LDADD = \
+list_LDADD = \
 	$(top_builddir)/src/common/libcchat-common.la
 

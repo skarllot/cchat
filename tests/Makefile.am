@@ -1,2 +1,2 @@
-SUBDIRS = arraylist string
+SUBDIRS = list string
 

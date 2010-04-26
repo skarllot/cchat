@@ -23,7 +23,7 @@
 #include "common/cstring.h"
 
 // Shows up string.
-void show_string(String *str);
+void show_string(string_t *str);
 
 int main(void)
 {
@@ -34,68 +34,68 @@ int main(void)
     char str5[] = "Á€ÉÍÓÚÜ";
     char str6[] = "Á𤭢ÉÍÓÚÜ";
 
-    String *tmpstr1, *tmpstr2;
+    string_t *tmpstr1, *tmpstr2;
 
     // =========================================================================
-    tmpstr1 = String_init(NULL, str1);
+    tmpstr1 = string_create(str1);
     show_string(tmpstr1);
 
     // =========================================================================
-    tmpstr2 = String_concat(tmpstr1, String_init(NULL, str2));  // <-- mem leak
+    tmpstr2 = string_concat(tmpstr1, string_create(str2));  // <-- mem leak
     show_string(tmpstr2);
 
-    String_free(tmpstr1, TRUE);
+    string_free(tmpstr1);
 
     // =========================================================================
-    tmpstr1 = String_substring(tmpstr2, 26, 26);
+    tmpstr1 = string_substring(tmpstr2, 26, 26);
     show_string(tmpstr1);
 
-    String_free(tmpstr2, TRUE);
-    String_free(tmpstr1, TRUE);
+    string_free(tmpstr2);
+    string_free(tmpstr1);
 
     // =========================================================================
-    tmpstr1 = String_init(NULL, str3);
+    tmpstr1 = string_create(str3);
     show_string(tmpstr1);
 
     // =========================================================================
-    tmpstr2 = String_substring(tmpstr1, 6, 3);
+    tmpstr2 = string_substring(tmpstr1, 6, 3);
     show_string(tmpstr2);
 
-    String_free(tmpstr2, TRUE);
-    String_free(tmpstr1, TRUE);
+    string_free(tmpstr2);
+    string_free(tmpstr1);
 
     // =========================================================================
-    tmpstr1 = String_init(NULL, str4);
-    tmpstr2 = String_substring(tmpstr1, 0, 3);
+    tmpstr1 = string_create(str4);
+    tmpstr2 = string_substring(tmpstr1, 0, 3);
     show_string(tmpstr2);
 
-    String_free(tmpstr2, TRUE);
-    String_free(tmpstr1, TRUE);
+    string_free(tmpstr2);
+    string_free(tmpstr1);
 
     // =========================================================================
-    tmpstr1 = String_init(NULL, str5);
-    tmpstr2 = String_substring(tmpstr1, 0, 3);
+    tmpstr1 = string_create(str5);
+    tmpstr2 = string_substring(tmpstr1, 0, 3);
     show_string(tmpstr2);
 
-    String_free(tmpstr2, TRUE);
-    String_free(tmpstr1, TRUE);
+    string_free(tmpstr2);
+    string_free(tmpstr1);
 
     // =========================================================================
-    tmpstr1 = String_init(NULL, str6);
-    tmpstr2 = String_substring(tmpstr1, 0, 4);
+    tmpstr1 = string_create(str6);
+    tmpstr2 = string_substring(tmpstr1, 0, 4);
     show_string(tmpstr2);
 
-    String_free(tmpstr2, TRUE);
-    String_free(tmpstr1, TRUE);
+    string_free(tmpstr2);
+    string_free(tmpstr1);
 
     return 0;
 }
 
-void show_string(String *str)
+void show_string(string_t *str)
 {
     printf("=========================\n");
-    printf("Length: %d\n", String_length(str));
-    printf("Value: %s\n", String_get(str));
+    printf("Length: %d\n", string_length(str));
+    printf("Value: %s\n", string_get(str));
     printf("=========================\n");
 }
 
