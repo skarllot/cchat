@@ -23,21 +23,21 @@
 
 #include "basic.h"
 
-typedef struct _String String;
-typedef struct _String_private String_private;
+typedef struct _string_t string_t;
+typedef struct _string_it string_it;
 
-struct _String
+struct _string_t
 {
-    String_private *priv;
+    string_it *priv;
 };
 
-String *String_init(String *this, const char *str);
-void String_free(String *this, BOOLEAN dynamic);
+string_t *string_create(const char *s);
+void string_free(string_t *str);
 
-String *String_concat(String *str1, String *str2);
-const char *String_get(String *this);
-int String_length(String *this);
-String *String_substring(String *this, int index, int length);
+string_t *string_concat(string_t *str1, string_t *str2);
+const char *string_get(string_t *str);
+int string_length(string_t *str);
+string_t *string_substring(string_t *str, int index, int length);
 
 #endif /* _STRING_H */
 

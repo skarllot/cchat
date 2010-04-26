@@ -20,13 +20,14 @@
 
 #include "cstring.h"
 #include <stdio.h>
+#include <string.h>
 
 // Count characters from UTF-8 string.
 static int strlen_utf8(const char *s);
 // Count bytes by given length from UTF-8 string.
 static int strlen_utf8_bytes(const char *s, int len);
 
-struct _String_private
+struct _string_it
 {
     char *string;
     int length;
@@ -34,41 +35,38 @@ struct _String_private
     // CHANGE: concat(), substring().
 };
 
-String *String_init(String *this, const char *str)
+string_t *string_create(const char *s)
 {
-    if (this == NULL) {
-        MALLOC(this, String);
-    }
+    string_t *str;
+    MALLOC(str, string_t);
 
-    MALLOC(this->priv, String_private);
-    if (str != NULL) {
-        int lenbytes = strlen(str) + 1;
+    MALLOC(str->priv, string_it);
+    if (s != NULL) {
+        int lenbytes = strlen(s) + 1;
 
-        this->priv->string = (char *)malloc(lenbytes);
-        memset(this->priv->string, 0, lenbytes);
-        strcpy(this->priv->string, str);
+        str->priv->string = (char *)malloc(lenbytes);
+        memset(str->priv->string, 0, lenbytes);
+        strcpy(str->priv->string, s);
 
-        this->priv->length = strlen_utf8(str);
-        this->priv->capacity = lenbytes;
+        str->priv->length = strlen_utf8(s);
+        str->priv->capacity = lenbytes;
     }
     else {
-        this->priv->length = -1;
-        this->priv->capacity = 0;
+        str->priv->length = -1;
+        str->priv->capacity = 0;
     }
-    return this;
+    return str;
 }
 
-void String_free(String *this, BOOLEAN dynamic)
+void string_free(string_t *str)
 {
-    free(this->priv->string);
-    free(this->priv);
-    
-    if (dynamic == TRUE) {
-        free(this);
-    }
+    free(str->priv->string);
+    free(str->priv);
+
+    free(str);
 }
 
-String *String_concat(String *str1, String *str2)
+string_t *string_concat(string_t *str1, string_t *str2)
 {
     int tsize = strlen(str1->priv->string) + strlen(str2->priv->string) + 1;
     char *newstr =  (char *)malloc(tsize);
@@ -76,39 +74,39 @@ String *String_concat(String *str1, String *str2)
     strcpy(newstr, str1->priv->string);
     strcat(newstr, str2->priv->string);
 
-    String *ret = String_init(NULL, NULL);
+    string_t *ret = string_create(NULL);
     ret->priv->string = newstr;
     ret->priv->length = strlen_utf8(newstr);
     ret->priv->capacity = tsize;
     return ret;
 }
 
-const char *String_get(String *this)
+const char *string_get(string_t *str)
 {
-    return this->priv->string;
+    return str->priv->string;
 }
 
-int String_length(String *this)
+int string_length(string_t *str)
 {
-    return this->priv->length;
+    return str->priv->length;
 }
 
-String *String_substring(String *this, int index, int length)
+string_t *string_substring(string_t *str, int index, int length)
 {
-    if (index + length > this->priv->length) {
+    if (index + length > str->priv->length) {
         // TODO: Needs a exception handler.
         fprintf(stderr, "Out of range substring\n");
         exit(EXIT_FAILURE);
     }
 
-    int realidx = strlen_utf8_bytes(this->priv->string, index);
-    int reallen = strlen_utf8_bytes(&this->priv->string[realidx], length);
+    int realidx = strlen_utf8_bytes(str->priv->string, index);
+    int reallen = strlen_utf8_bytes(&str->priv->string[realidx], length);
 
     char *newstr = (char *)malloc(reallen + 1);
     memset(newstr, 0, reallen + 1);
-    memcpy(newstr, &this->priv->string[realidx], reallen);
+    memcpy(newstr, &str->priv->string[realidx], reallen);
 
-    String *ret = String_init(NULL, NULL);
+    string_t *ret = string_create(NULL);
     ret->priv->string = newstr;
     ret->priv->length = strlen_utf8(newstr);
     ret->priv->capacity = reallen + 1;
