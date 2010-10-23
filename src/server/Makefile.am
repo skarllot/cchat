@@ -1,3 +1,5 @@
+# vim:set ts=8 sw=8 noexpandtab nowrap textwidth=80
+
 AM_CFLAGS = -Wall -I $(top_srcdir)/src
 
 bin_PROGRAMS = cchat-server

@@ -1,4 +1,5 @@
 # wildcard patterns
+*.cache
 *.la
 *.lo
 *.o

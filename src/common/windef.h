@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009 Fabrício Godoy <skarllot@gmail.com>
+ * Copyright (C) 2010 Fabrício Godoy <skarllot@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,28 +18,32 @@
  *
  */
 
-#ifndef _BASIC_H
-#define _BASIC_H
+#ifdef WIN32
 
-#include <stdlib.h>
-#include <string.h>
+#ifndef _WINDEF_H
+#define _WINDEF_H
 
-// Alloc memory and fill it with zeros
-#define MALLOC(p, type) \
-    p = (type *)malloc(sizeof(type)); \
-    memset(p, 0, sizeof(type));
-// Fill a memory space with zeros and free it (secure)
-#define SFREE(p, type) \
-    memset(p, 0, sizeof(type)); \
-    free(p);
-
-#ifndef TRUE
-
-#define FALSE 0
-#define TRUE !(FALSE)
-typedef int BOOLEAN;
-
+#ifdef HAVE_CONFIG_H
+#include <config.h>
 #endif
 
-#endif /* _BASIC_H */
+#ifndef WINVER
+// Windows Server 2003 with SP1, Windows XP with SP2
+// See http://msdn.microsoft.com/en-us/library/aa383745.aspx
+#define WINVER 0x0502
+#endif /* WINVER */
+
+#if WINVER < 0x0502
+#error WINVER should be greater or equal 0x0502.
+#endif
+
+#include <windows.h>
+#include <winsock2.h>
+
+#define malloc(x) HeapAlloc(GetProcessHeap(), 0, (x))
+#define free(x) HeapFree(GetProcessHeap(), 0, (x))
+
+#endif /* _WINDEF_H */
+
+#endif /* WIN32 */
 

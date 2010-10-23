@@ -11,10 +11,30 @@ AM_INIT_AUTOMAKE([1.9 -Wall -Werror])
 LT_PREREQ([2.2.6])
 LT_INIT
 
+# Check build environment
+AC_CANONICAL_HOST
+
 # Checks for programs.
 AC_PROG_CC
 
 # Checks for libraries.
+
+# ------------------------------------------------------------------------------
+# Check OS-specific platform
+# ------------------------------------------------------------------------------
+AC_MSG_CHECKING([for native Win32])
+case "$host_os" in
+  *mingw*)
+    iswin32=yes
+    AC_DEFINE(WIN32_LEAN_AND_MEAN, 1, [Define for faster code generation.])
+    ;;
+  *)
+    iswin32=no
+    ;;
+esac
+AC_MSG_RESULT([$iswin32])
+
+AM_CONDITIONAL(OS_WIN32, [test "$iswin32" = "yes"])
 
 # Checks for header files.
 

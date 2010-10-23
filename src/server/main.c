@@ -24,6 +24,11 @@
 
 #include <signal.h>
 
+#ifdef WIN32
+#include "windef.h"
+#include <string.h>
+#endif
+
 #include "chatserver.h"
 
 chatserver_t *server;
@@ -31,6 +36,15 @@ void on_signal(int);
 
 int main(void)
 {
+    #ifdef WIN32
+    WSADATA wsadata;
+    memset(&wsadata, 0, sizeof(WSADATA));
+    if (WSAStartup(MAKEWORD(2,2), &wsadata) != 0) {
+        fprintf(stderr, "WSAStartup failed.\n");
+        exit(EXIT_FAILURE);
+    }
+    #endif
+
     // Catch CTRL+C
     signal(SIGINT, on_signal);
 
@@ -38,6 +52,10 @@ int main(void)
     chatserver_load(server);
     chatserver_start(server);
     chatserver_free(server);
+
+    #ifdef WIN32
+    WSACleanup();
+    #endif
 
     return EXIT_SUCCESS;
 }

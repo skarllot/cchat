@@ -24,11 +24,15 @@
 #include <pthread.h>
 #include <stdio.h>
 
+#ifndef WIN32
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#else
+#include "windef.h"
+#endif
 
 #define DEFAULT_PORT 1100
 
@@ -85,7 +89,11 @@ void chatserver_load(chatserver_t *csrv)
         exit(EXIT_FAILURE);
     }
 
+#ifdef __linux__
     int allowreuse = 1;
+#elif __sun__
+    char allowreuse = '1';
+#endif
     if (setsockopt(csrv->priv->serverfd, SOL_SOCKET, SO_REUSEADDR, &allowreuse,
                    sizeof(allowreuse)) == -1) {
         perror("Cannot manipulate server socket");
