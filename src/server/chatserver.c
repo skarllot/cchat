@@ -89,6 +89,7 @@ void chatserver_load(chatserver_t *csrv)
         exit(EXIT_FAILURE);
     }
 
+// Allow reuse an already closed socket (not reliable)
 #ifdef __linux__
     int allowreuse = 1;
 #elif __sun__
@@ -107,10 +108,11 @@ void chatserver_start(chatserver_t *csrv)
     struct sockaddr_in myaddr;
     
     memset(&myaddr, 0, sizeof(struct sockaddr_in));
-    myaddr.sin_family = AF_INET;
-    myaddr.sin_port = htons(DEFAULT_PORT);
-    myaddr.sin_addr.s_addr = INADDR_ANY;
+    myaddr.sin_family = AF_INET;            // IPv4
+    myaddr.sin_port = htons(DEFAULT_PORT);  // 0x0b (x86) -> 0xb0 (inet)
+    myaddr.sin_addr.s_addr = htonl(INADDR_ANY);    // Listen all interfaces
 
+    // Set address to socket
     if (bind(csrv->priv->serverfd, (const struct sockaddr *)&myaddr,
              sizeof(struct sockaddr_in)) == -1) {
         perror("Cannot bind address to server socket");
@@ -118,6 +120,7 @@ void chatserver_start(chatserver_t *csrv)
         exit(EXIT_FAILURE);
     }
 
+    // Open socket for clients awaiting
     if (listen(csrv->priv->serverfd, 10) == -1) {
         perror("Cannot listen for connection using server socket");
         close(csrv->priv->serverfd);
