@@ -30,9 +30,9 @@ struct _list_it
 };
 
 // Allocs more space if requested size is greater than allocated
-static void list_alloc(list_t *this, int size);
+static void list_alloc(list_t *lst, int size);
 // Check if requested index is a valid index into specified array list.
-static void list_validateindex(list_t *this, int index);
+static void list_validateindex(list_t *lst, int index);
 
 list_t *list_create(int size)
 {

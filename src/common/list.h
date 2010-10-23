@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef _ARRAYLIST_H
-#define _ARRAYLIST_H
+#ifndef _LIST_H
+#define _LIST_H
 
 #include "basic.h"
 
@@ -80,5 +80,5 @@ void list_set(list_t *lst, int index, const void *item);
  */
 void list_trim(list_t *lst);
 
-#endif /* _ARRAYLIST_H */
+#endif /* _LIST_H */
 
