@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef _STRING_H
-#define _STRING_H
+#ifndef _CSTRING_H
+#define _CSTRING_H
 
 #include "basic.h"
 
@@ -39,6 +39,7 @@ struct _string_ll_t
 };
 
 string_t *string_create(const char *s);
+string_t *string_create_c(int capacity);
 void string_free(string_t *str);
 void string_ll_free(string_ll_t *strll);
 
@@ -50,5 +51,5 @@ int string_length(string_t *str);
 string_ll_t *string_split(string_t *str, const char *delimiters);
 string_t *string_substring(string_t *str, int index, int length);
 
-#endif /* _STRING_H */
+#endif /* _CSTRING_H */
 
