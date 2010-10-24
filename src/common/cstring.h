@@ -81,6 +81,11 @@ string_ll_t *string_split(string_t *str, const char *delimiters);
  * @param length Substring length.
  */
 string_t *string_substring(string_t *str, int index, int length);
+/** Append a string to linked list.
+ *
+ * @param str String to append.
+ */
+void string_ll_append(string_ll_t *strll, string_t *str);
 
 #endif /* _CSTRING_H */
 

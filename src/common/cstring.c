@@ -208,6 +208,18 @@ string_t *string_substring(string_t *str, int index, int length)
     return string_create_nc(newstr);
 }
 
+void string_ll_append(string_ll_t *strll, string_t *str)
+{
+    string_ll_t *curr = strll;
+    while (curr->next)
+        curr = curr->next;
+
+    MALLOC(curr->next, string_ll_t);
+    curr = curr->next;
+    curr->node = str;
+    curr->next = NULL;
+}
+
 // Calculate length in UTF-8 characters
 // See http://en.wikipedia.org/wiki/UTF-8#Description
 int strlen_utf8(const char *s)
