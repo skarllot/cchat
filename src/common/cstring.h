@@ -25,18 +25,29 @@
 
 typedef struct _string_t string_t;
 typedef struct _string_it string_it;
+typedef struct _string_ll_t string_ll_t;
 
 struct _string_t
 {
     string_it *priv;
 };
 
+struct _string_ll_t
+{
+    string_t *node;
+    string_ll_t *next;
+};
+
 string_t *string_create(const char *s);
 void string_free(string_t *str);
+void string_ll_free(string_ll_t *strll);
+
+char *pchar_substring(const char *s, int index, int length);
 
 string_t *string_concat(string_t *str1, string_t *str2);
 const char *string_get(string_t *str);
 int string_length(string_t *str);
+string_ll_t *string_split(string_t *str, const char *delimiters);
 string_t *string_substring(string_t *str, int index, int length);
 
 #endif /* _STRING_H */
