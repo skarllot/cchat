@@ -98,6 +98,34 @@ void string_ll_free(string_ll_t *strll)
     }
 }
 
+void pchar_remove_lbreaks(char *s)
+{
+    register int i = 0;
+    while (s[i]) {
+        if (s[i] == '\n' ||
+            s[i] == '\r')
+            s[i] = '\0';
+
+        i++;
+    }
+}
+
+char *pchar_substring(const char *s, int index, int length)
+{
+    int slen = strlen(s);
+    if (index + length > slen) {
+        // TODO: Needs a exception handler.
+        fprintf(stderr, "Out of range substring\n");
+        return NULL;
+    }
+
+    char *newstr = (char *)malloc(length + 1);
+    memset(newstr, 0, length + 1);
+    memcpy(newstr, &s[index], length);
+
+    return newstr;
+}
+
 string_t *string_concat(string_t *str1, string_t *str2)
 {
     int tsize = strlen(str1->priv->string) + strlen(str2->priv->string) + 1;
@@ -178,22 +206,6 @@ string_t *string_substring(string_t *str, int index, int length)
     memcpy(newstr, &str->priv->string[realidx], reallen);
 
     return string_create_nc(newstr);
-}
-
-char *pchar_substring(const char *s, int index, int length)
-{
-    int slen = strlen(s);
-    if (index + length > slen) {
-        // TODO: Needs a exception handler.
-        fprintf(stderr, "Out of range substring\n");
-        return NULL;
-    }
-
-    char *newstr = (char *)malloc(length + 1);
-    memset(newstr, 0, length + 1);
-    memcpy(newstr, &s[index], length);
-
-    return newstr;
 }
 
 // Calculate length in UTF-8 characters

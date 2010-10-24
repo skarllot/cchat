@@ -43,12 +43,43 @@ string_t *string_create_c(int capacity);
 void string_free(string_t *str);
 void string_ll_free(string_ll_t *strll);
 
+/** Remove line breaks from string.
+ *
+ * @param s The string.
+ */
+void pchar_remove_lbreaks(char *s);
+/** Gets a substring from string.
+ *
+ * @param s The string.
+ * @param index String index where substring begins.
+ * @param length Substring length.
+ */
 char *pchar_substring(const char *s, int index, int length);
 
+/** Concatenate two strings.
+ *
+ * @param str1 First string.
+ * @param str2 Second string.
+ */
 string_t *string_concat(string_t *str1, string_t *str2);
+/** Gets char pointer from string.
+ *
+ */
 const char *string_get(string_t *str);
+/** Gets string length.
+ *
+ */
 int string_length(string_t *str);
+/** Split string into linked list tokens.
+ *
+ * @param delimiters Delimiters array.
+ */
 string_ll_t *string_split(string_t *str, const char *delimiters);
+/** Gets a substring from string.
+ *
+ * @param index String index where substring begins.
+ * @param length Substring length.
+ */
 string_t *string_substring(string_t *str, int index, int length);
 
 #endif /* _CSTRING_H */
