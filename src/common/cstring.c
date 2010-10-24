@@ -68,6 +68,14 @@ string_t *string_create_nc(const char *s)
     return str;
 }
 
+string_t *string_create_c(int capacity)
+{
+    char *s = (char *)malloc(sizeof(char) * capacity);
+    memset(s, 0, sizeof(char) * capacity);
+
+    return string_create_nc(s);
+}
+
 void string_free(string_t *str)
 {
     free(str->priv->string);
