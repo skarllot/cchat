@@ -20,6 +20,7 @@
 
 #include "chatserver.h"
 #include "common/list.h"
+#include "common/cstring.h"
 
 #include <pthread.h>
 #include <stdio.h>
@@ -35,24 +36,30 @@
 #endif
 
 #define DEFAULT_PORT 1100
+#define READ_BUFFER 1024
 
-#define COMMANDS_EXIT "EXIT\r\n"
+#define BREAK_LINE "\n\r"
+
+#define COMMANDS_EXIT "EXIT"
 
 struct _chatserver_it
 {
     int serverfd;
     BOOLEAN stopping;
-    list_t *clientfd_list;
+    list_t *clientwa_list;
 };
 
 typedef struct
 {
-    chatserver_t *instance;
-    int clientindex;
-} thcontext_t;
+    int fd;
+    string_ll_t *cmd_list;
+    char *last_cmd;
+    BOOLEAN exit;
+} clientwa_t;
 
 static void chatserver_acceptclients(chatserver_t *);
 static void *chatserver_clienttalk(void *context);
+static void flush_commands(clientwa_t *cliwa);
 
 chatserver_t *chatserver_create()
 {
@@ -62,20 +69,27 @@ chatserver_t *chatserver_create()
     MALLOC(csrv->priv, chatserver_it);
     csrv->priv->serverfd = -1;
     csrv->priv->stopping = FALSE;
-    csrv->priv->clientfd_list = list_create(-1);
+    csrv->priv->clientwa_list = list_create(-1);
     return csrv;
 }
 
 void chatserver_free(chatserver_t *csrv)
 {
-    int count = list_getcount(csrv->priv->clientfd_list);
+    int count = list_getcount(csrv->priv->clientwa_list);
     int i;
     for (i = count - 1; i >= 0; --i) {
-        int *item = (int *)list_remove(csrv->priv->clientfd_list, i);
+        clientwa_t *item = (clientwa_t *)list_remove(
+            csrv->priv->clientwa_list, i);
+
+        if (item->fd)
+            close(item->fd);
+        string_ll_free(item->cmd_list);
+        if (item->last_cmd)
+            free(item->last_cmd);
         free(item);
     }
 
-    list_free(csrv->priv->clientfd_list);
+    list_free(csrv->priv->clientwa_list);
     free(csrv->priv);
 
     free(csrv);
@@ -141,60 +155,79 @@ void chatserver_stop(chatserver_t *csrv)
 void chatserver_acceptclients(chatserver_t *csrv)
 {
     for (;;) {
-        int *clientfd = (int *)malloc(sizeof(int));
-        *clientfd = accept(csrv->priv->serverfd, NULL, NULL);
-        if (csrv->priv->stopping == TRUE && *clientfd < 0) {
+        clientwa_t *cliwa = NULL;
+        MALLOC(cliwa, clientwa_t);
+
+        cliwa->fd = accept(csrv->priv->serverfd, NULL, NULL);
+        if (csrv->priv->stopping == TRUE && cliwa->fd < 0) {
             break;
         }
-        if (*clientfd < 0) {
+        if (cliwa->fd < 0) {
             perror("Error accepting client connection");
             close(csrv->priv->serverfd);
             exit(EXIT_FAILURE);
         }
         printf("Client connected.\n");
 
-        list_add(csrv->priv->clientfd_list, clientfd);
-        thcontext_t *context;
-        MALLOC(context, thcontext_t);
-        context->instance = csrv;
-        context->clientindex = list_getcount(csrv->priv->clientfd_list) - 1;
+        list_add(csrv->priv->clientwa_list, cliwa);
 
         pthread_t thread;
-        pthread_create(&thread, NULL, chatserver_clienttalk, context);
+        pthread_create(&thread, NULL, chatserver_clienttalk, cliwa);
     }
 }
 
 void *chatserver_clienttalk(void *context)
 {
-    thcontext_t *tcontext = (thcontext_t *)context;
-    int clientfd = *(int *)list_get(tcontext->instance->priv->clientfd_list,
-                                    tcontext->clientindex);
+    clientwa_t *cliwa = (clientwa_t *)context;
+    cliwa->exit = FALSE;
+    MALLOC(cliwa->cmd_list, string_ll_t);
+    cliwa->last_cmd = NULL;
 
-    while (TRUE) {
+    string_t *climsg = string_create_c(READ_BUFFER);
+
+    while (!cliwa->exit) {
         char mymsg[] = "Command: ";
-        if (write(clientfd, mymsg, strlen(mymsg)) < 0) {
+        if (write(cliwa->fd, mymsg, strlen(mymsg)) < 0) {
             perror("Cannot send message to client");
             break;
         }
 
-        char climsg[256];
-        memset(climsg, 0, 256);
-        if (read(clientfd, climsg, 255) < 0) {
+        memset(string_get(climsg), 0, READ_BUFFER);
+        if (read(cliwa->fd, string_get(climsg), READ_BUFFER - 1) < 0) {
             perror("Cannot receive message from client");
             break;
         }
 
-        if (strcmp(climsg, COMMANDS_EXIT) == 0) {
-            break;
-        }
-        printf("Client message: %s\n", climsg);
+        cliwa->cmd_list->next = string_split(climsg, BREAK_LINE);
+
+        flush_commands(cliwa);
+
+        printf("Client message: %s\n", string_get(climsg));
     }
 
-    shutdown(clientfd, SHUT_RDWR);
-    close(clientfd);
+    shutdown(cliwa->fd, SHUT_RDWR);
+    close(cliwa->fd);
     printf("Client disconnected.\n");
 
     free(context);
     pthread_exit(NULL);
+}
+
+void flush_commands(clientwa_t *cliwa)
+{
+    string_ll_t *curr = cliwa->cmd_list->next;
+
+    while (curr) {
+        if (!cliwa->last_cmd) {
+            if (strcmp(string_get(curr->node), COMMANDS_EXIT) == 0) {
+                cliwa->exit = TRUE;
+            }
+        }
+
+        curr = curr->next;
+    }
+
+    string_ll_free(cliwa->cmd_list->next);
+    cliwa->cmd_list->next = NULL;
 }
 
