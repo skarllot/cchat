@@ -36,30 +36,48 @@
 #endif
 
 #define DEFAULT_PORT 1100
-#define READ_BUFFER 1024
+#define BUFFER_SIZE 1024
 
 #define BREAK_LINE "\n\r"
 
-#define COMMANDS_EXIT "EXIT"
+#define CMD_NO_CODE -1
+#define CMD_EXIT "EXIT"
+#define CMD_PASS "PASS"
+#define CMD_PASS_CODE 0
+
+#define MSG_INVALID "INVALID"
+#define MSG_OK "OK"
+#define MSG_FAIL "FAIL"
+#define MSG_PASS "PASS?"
+#define MSG_NICK "NICK?"
+
+#define LEVEL_PASS 0
+#define LEVEL_NICK 1
+#define LEVEL_MSG 2
 
 struct _chatserver_it
 {
     int serverfd;
     BOOLEAN stopping;
     list_t *clientwa_list;
+    char *pass;
 };
 
 typedef struct
 {
+    chatserver_it *parent;
     int fd;
     string_ll_t *cmd_list;
-    char *last_cmd;
+    int last_cmd;
+    string_ll_t *msg_list;
     BOOLEAN exit;
+    int level;
 } clientwa_t;
 
 static void chatserver_acceptclients(chatserver_t *);
 static void *chatserver_clienttalk(void *context);
 static void flush_commands(clientwa_t *cliwa);
+static void flush_messages(clientwa_t *cliwa);
 
 chatserver_t *chatserver_create()
 {
@@ -70,6 +88,7 @@ chatserver_t *chatserver_create()
     csrv->priv->serverfd = -1;
     csrv->priv->stopping = FALSE;
     csrv->priv->clientwa_list = list_create(-1);
+    csrv->priv->pass = NULL;
     return csrv;
 }
 
@@ -81,11 +100,10 @@ void chatserver_free(chatserver_t *csrv)
         clientwa_t *item = (clientwa_t *)list_remove(
             csrv->priv->clientwa_list, i);
 
-        if (item->fd)
+        if (item->fd >= 0)
             close(item->fd);
         string_ll_free(item->cmd_list);
-        if (item->last_cmd)
-            free(item->last_cmd);
+        string_ll_free(item->msg_list);
         free(item);
     }
 
@@ -114,6 +132,17 @@ void chatserver_load(chatserver_t *csrv)
         perror("Cannot manipulate server socket");
         close(csrv->priv->serverfd);
         exit(EXIT_FAILURE);
+    }
+
+    char *buf = (char *)malloc(sizeof(char) * BUFFER_SIZE);
+    memset(buf, 0, sizeof(char) * BUFFER_SIZE);
+
+    printf("Type server password (empty to none): ");
+    fgets(buf, BUFFER_SIZE, stdin);
+    pchar_remove_lbreaks(buf);
+    int len = strlen(buf);
+    if (len > 0) {
+        csrv->priv->pass = pchar_substring(buf, 0, len);
     }
 }
 
@@ -157,6 +186,7 @@ void chatserver_acceptclients(chatserver_t *csrv)
     for (;;) {
         clientwa_t *cliwa = NULL;
         MALLOC(cliwa, clientwa_t);
+        cliwa->parent = csrv->priv;
 
         cliwa->fd = accept(csrv->priv->serverfd, NULL, NULL);
         if (csrv->priv->stopping == TRUE && cliwa->fd < 0) {
@@ -167,7 +197,7 @@ void chatserver_acceptclients(chatserver_t *csrv)
             close(csrv->priv->serverfd);
             exit(EXIT_FAILURE);
         }
-        printf("Client connected.\n");
+        printf("Client %d connected.\n", cliwa->fd);
 
         list_add(csrv->priv->clientwa_list, cliwa);
 
@@ -181,47 +211,87 @@ void *chatserver_clienttalk(void *context)
     clientwa_t *cliwa = (clientwa_t *)context;
     cliwa->exit = FALSE;
     MALLOC(cliwa->cmd_list, string_ll_t);
-    cliwa->last_cmd = NULL;
+    cliwa->last_cmd = CMD_NO_CODE;
+    MALLOC(cliwa->msg_list, string_ll_t);
+    cliwa->level = cliwa->parent->pass ? LEVEL_PASS : LEVEL_NICK;
 
-    string_t *climsg = string_create_c(READ_BUFFER);
+    string_t *climsg = string_create_c(BUFFER_SIZE);
 
     while (!cliwa->exit) {
-        char mymsg[] = "Command: ";
-        if (write(cliwa->fd, mymsg, strlen(mymsg)) < 0) {
-            perror("Cannot send message to client");
-            break;
+        char *mymsg;
+        if (cliwa->last_cmd == CMD_NO_CODE) {
+            switch (cliwa->level) {
+                case LEVEL_PASS:
+                    mymsg = MSG_PASS;
+                    break;
+                case LEVEL_NICK:
+                    mymsg = MSG_NICK;
+                    break;
+            }
+            string_ll_append(cliwa->msg_list, string_create(mymsg));
         }
+        flush_messages(cliwa);
 
-        memset(string_get(climsg), 0, READ_BUFFER);
-        if (read(cliwa->fd, string_get(climsg), READ_BUFFER - 1) < 0) {
+        memset(string_get(climsg), 0, BUFFER_SIZE);
+        if (read(cliwa->fd, string_get(climsg), BUFFER_SIZE - 1) < 0) {
             perror("Cannot receive message from client");
             break;
         }
 
-        cliwa->cmd_list->next = string_split(climsg, BREAK_LINE);
+        if (strlen(string_get(climsg)) > 0)
+            cliwa->cmd_list->next = string_split(climsg, BREAK_LINE);
 
         flush_commands(cliwa);
-
-        printf("Client message: %s\n", string_get(climsg));
     }
 
     shutdown(cliwa->fd, SHUT_RDWR);
     close(cliwa->fd);
-    printf("Client disconnected.\n");
+    printf("Client %d disconnected.\n", cliwa->fd);
 
-    free(context);
+    // TODO: Remove from list
+    cliwa->fd = -1;
+    //free(context);
     pthread_exit(NULL);
 }
 
 void flush_commands(clientwa_t *cliwa)
 {
     string_ll_t *curr = cliwa->cmd_list->next;
+    const char *s;
 
     while (curr) {
-        if (!cliwa->last_cmd) {
-            if (strcmp(string_get(curr->node), COMMANDS_EXIT) == 0) {
-                cliwa->exit = TRUE;
-            }
+        s = string_get(curr->node);
+        printf("< %d:%s\n", cliwa->fd, s);
+
+        switch (cliwa->last_cmd) {
+            case CMD_NO_CODE:
+                switch (cliwa->level) {
+                    case LEVEL_PASS:
+                        if (strcmp(s, CMD_PASS) == 0)
+                            cliwa->last_cmd = CMD_PASS_CODE;
+                        else
+                            string_ll_append(cliwa->msg_list,
+                                string_create(MSG_INVALID));
+                        break;
+                }
+
+                if (strcmp(s, CMD_EXIT) == 0) {
+                    cliwa->exit = TRUE;
+                }
+                break;
+
+            case CMD_PASS_CODE:
+                if (strcmp(s, cliwa->parent->pass) == 0) {
+                    cliwa->level++;
+                    cliwa->last_cmd = CMD_NO_CODE;
+                    string_ll_append(cliwa->msg_list,
+                        string_create(MSG_OK));
+                }
+                else {
+                    string_ll_append(cliwa->msg_list,
+                        string_create(MSG_FAIL));
+                }
+                break;
         }
 
         curr = curr->next;
@@ -229,5 +299,30 @@ void flush_commands(clientwa_t *cliwa)
 
     string_ll_free(cliwa->cmd_list->next);
     cliwa->cmd_list->next = NULL;
+}
+
+void flush_messages(clientwa_t *cliwa)
+{
+    string_ll_t *curr = cliwa->msg_list->next;
+    const char *s = NULL;
+
+    while (curr) {
+        s = string_get(curr->node);
+        printf("> %d:%s\n", cliwa->fd, s);
+
+        if (write(cliwa->fd, s, strlen(s)) < 0) {
+            perror("Cannot send message to client");
+            break;
+        }
+        if (write(cliwa->fd, "\n", strlen("\n")) < 0) {
+            perror("Cannot send message to client");
+            break;
+        }
+
+        curr = curr->next;
+    }
+
+    string_ll_free(cliwa->msg_list->next);
+    cliwa->msg_list->next = NULL;
 }
 
