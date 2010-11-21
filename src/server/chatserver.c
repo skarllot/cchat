@@ -22,6 +22,7 @@
 #include "common/list.h"
 #include "common/pchar.h"
 
+#include <config.h>
 #include <pthread.h>
 #include <stdio.h>
 
@@ -43,9 +44,9 @@
 #define CMD_NO_CODE -1
 #define CMD_EXIT "EXIT"
 #define CMD_PASS "PASS"
-#define CMD_PASS_CODE 0
+//#define CMD_PASS_CODE 0
 
-#define MSG_WELCOME "!OK Connected"
+#define MSG_WELCOME "!OK Connected (" PACKAGE_STRING ")"
 #define MSG_INVALID "!ERROR Invalid command"
 #define MSG_PASS_FAIL "!ERROR Wrong password"
 #define MSG_PASS_OK "!OK Password accepted"
@@ -249,18 +250,36 @@ void *chatserver_clienttalk(void *context)
 void flush_commands(clientwa_t *cliwa)
 {
     pchar_ll_t *curr = cliwa->cmd_list->next;
+    int idx;
+    char *cmd, *param;
 
     while (curr) {
         printf("< %d:%s\n", cliwa->fd, curr->node);
+
+        cmd = curr->node;
+        param = NULL;
+        idx = pchar_index_of(cmd, ' ');
+        if (idx > 0) {
+            cmd[idx] = '\0';
+            param = &cmd[idx + 1];
+        }
 
         switch (cliwa->last_cmd) {
             case CMD_NO_CODE:
                 switch (cliwa->level) {
                     case LEVEL_PASS:
-                        if (strcmp(curr->node, CMD_PASS) == 0)
-                            cliwa->last_cmd = CMD_PASS_CODE;
+                        if (strcmp(cmd, CMD_PASS) == 0 && param) {
+                            if (strcmp(param, cliwa->parent->pass) == 0) {
+                                cliwa->level++;
+                                pchar_ll_append(cliwa->msg_list, MSG_PASS_OK);
+                            }
+                            else {
+                                pchar_ll_append(cliwa->msg_list, MSG_PASS_FAIL);
+                            }
+                        }
                         else
                             pchar_ll_append(cliwa->msg_list, MSG_INVALID);
+
                         break;
                 }
 
@@ -269,16 +288,9 @@ void flush_commands(clientwa_t *cliwa)
                 }
                 break;
 
-            case CMD_PASS_CODE:
-                if (strcmp(curr->node, cliwa->parent->pass) == 0) {
-                    cliwa->level++;
-                    cliwa->last_cmd = CMD_NO_CODE;
-                    pchar_ll_append(cliwa->msg_list, MSG_PASS_OK);
-                }
-                else {
-                    pchar_ll_append(cliwa->msg_list, MSG_PASS_FAIL);
-                }
-                break;
+            /*case CMD_PASS_CODE:
+                
+                break;*/
         }
 
         curr = curr->next;
