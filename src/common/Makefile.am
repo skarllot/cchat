@@ -10,5 +10,7 @@ libcchat_common_la_SOURCES = \
 	cstring.c \
 	list.h \
 	list.c \
+	pchar.h \
+	pchar.c \
 	windef.h
 

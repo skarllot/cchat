@@ -18,67 +18,50 @@
  *
  */
 
-#ifndef _CSTRING_H
-#define _CSTRING_H
+#ifndef _PCHAR_H
+#define _PCHAR_H
 
-#include "basic.h"
+typedef struct _pchar_ll_t pchar_ll_t;
 
-typedef struct _string_t string_t;
-typedef struct _string_it string_it;
-typedef struct _string_ll_t string_ll_t;
-
-struct _string_t
+struct _pchar_ll_t
 {
-    string_it *priv;
+    char *node;
+    pchar_ll_t *next;
 };
 
-struct _string_ll_t
-{
-    string_t *node;
-    string_ll_t *next;
-};
+void pchar_ll_free(pchar_ll_t *sll);
 
-string_t *string_create(const char *s);
-string_t *string_create_c(int capacity);
-void string_free(string_t *str);
-void string_ll_free(string_ll_t *strll);
-
-
-/** Concatenate two strings.
- *
- * @param str1 First string.
- * @param str2 Second string.
+/** Gets a copy of specified string.
  */
-string_t *string_concat(string_t *str1, string_t *str2);
-/** Gets char pointer from string.
- *
- */
-const char *string_get(string_t *str);
+char *pchar_copy(const char *s);
 /** Gets the index of first occurrence of specified character.
  *
  * @param c A character to seek.
  */
-int string_index_of(string_t *str, char c);
-/** Gets string length.
+int pchar_index_of(const char *s, char c);
+/** Remove line breaks from string.
  *
+ * @param s The string.
  */
-int string_length(string_t *str);
+void pchar_remove_lbreaks(char *s);
 /** Split string into linked list tokens.
  *
  * @param delimiters Delimiters array.
  */
-string_ll_t *string_split(string_t *str, const char *delimiters);
+pchar_ll_t *pchar_split(const char *s, const char *delimiters);
 /** Gets a substring from string.
  *
- * @param index The initial character position of substring.
- * @param length The substring characters number.
+ * @param s The string.
+ * @param index String index where substring begins.
+ * @param length Substring length.
  */
-string_t *string_substring(string_t *str, int index, int length);
+char *pchar_substring(const char *s, int index, int length);
+
 /** Append a string to linked list.
  *
  * @param str String to append.
  */
-void string_ll_append(string_ll_t *strll, string_t *str);
+void pchar_ll_append(pchar_ll_t *sll, const char *s);
 
-#endif /* _CSTRING_H */
+#endif /* _PCHAR_H */
 
