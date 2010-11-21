@@ -20,7 +20,7 @@
 
 #include "chatserver.h"
 #include "common/list.h"
-#include "common/cstring.h"
+#include "common/pchar.h"
 
 #include <pthread.h>
 #include <stdio.h>
@@ -45,7 +45,10 @@
 #define CMD_PASS "PASS"
 #define CMD_PASS_CODE 0
 
-#define MSG_INVALID "INVALID"
+#define MSG_WELCOME "!OK Connected"
+#define MSG_INVALID "!ERROR Invalid command"
+#define MSG_PASS_FAIL "!ERROR Wrong password"
+#define MSG_PASS_OK "!OK Password accepted"
 #define MSG_OK "OK"
 #define MSG_FAIL "FAIL"
 #define MSG_PASS "PASS?"
@@ -67,9 +70,9 @@ typedef struct
 {
     chatserver_it *parent;
     int fd;
-    string_ll_t *cmd_list;
+    pchar_ll_t *cmd_list;
     int last_cmd;
-    string_ll_t *msg_list;
+    pchar_ll_t *msg_list;
     BOOLEAN exit;
     int level;
 } clientwa_t;
@@ -102,8 +105,8 @@ void chatserver_free(chatserver_t *csrv)
 
         if (item->fd >= 0)
             close(item->fd);
-        string_ll_free(item->cmd_list);
-        string_ll_free(item->msg_list);
+        pchar_ll_free(item->cmd_list);
+        pchar_ll_free(item->msg_list);
         free(item);
     }
 
@@ -151,9 +154,9 @@ void chatserver_start(chatserver_t *csrv)
     struct sockaddr_in myaddr;
     
     memset(&myaddr, 0, sizeof(struct sockaddr_in));
-    myaddr.sin_family = AF_INET;            // IPv4
-    myaddr.sin_port = htons(DEFAULT_PORT);  // 0x0b (x86) -> 0xb0 (inet)
-    myaddr.sin_addr.s_addr = htonl(INADDR_ANY);    // Listen all interfaces
+    myaddr.sin_family = AF_INET;                    // IPv4
+    myaddr.sin_port = htons(DEFAULT_PORT);          // 0x0b (x86) -> 0xb0 (inet)
+    myaddr.sin_addr.s_addr = htonl(INADDR_ANY);     // Listen all interfaces
 
     // Set address to socket
     if (bind(csrv->priv->serverfd, (const struct sockaddr *)&myaddr,
@@ -210,36 +213,25 @@ void *chatserver_clienttalk(void *context)
 {
     clientwa_t *cliwa = (clientwa_t *)context;
     cliwa->exit = FALSE;
-    MALLOC(cliwa->cmd_list, string_ll_t);
+    MALLOC(cliwa->cmd_list, pchar_ll_t);
     cliwa->last_cmd = CMD_NO_CODE;
-    MALLOC(cliwa->msg_list, string_ll_t);
+    MALLOC(cliwa->msg_list, pchar_ll_t);
     cliwa->level = cliwa->parent->pass ? LEVEL_PASS : LEVEL_NICK;
 
-    string_t *climsg = string_create_c(BUFFER_SIZE);
+    char *climsg = (char *)malloc(BUFFER_SIZE);
+    pchar_ll_append(cliwa->msg_list, MSG_WELCOME);
 
     while (!cliwa->exit) {
-        char *mymsg;
-        if (cliwa->last_cmd == CMD_NO_CODE) {
-            switch (cliwa->level) {
-                case LEVEL_PASS:
-                    mymsg = MSG_PASS;
-                    break;
-                case LEVEL_NICK:
-                    mymsg = MSG_NICK;
-                    break;
-            }
-            string_ll_append(cliwa->msg_list, string_create(mymsg));
-        }
         flush_messages(cliwa);
 
-        memset(string_get(climsg), 0, BUFFER_SIZE);
-        if (read(cliwa->fd, string_get(climsg), BUFFER_SIZE - 1) < 0) {
+        memset(climsg, 0, BUFFER_SIZE);
+        if (read(cliwa->fd, climsg, BUFFER_SIZE - 1) < 0) {
             perror("Cannot receive message from client");
             break;
         }
 
-        if (strlen(string_get(climsg)) > 0)
-            cliwa->cmd_list->next = string_split(climsg, BREAK_LINE);
+        if (strlen(climsg) > 0)
+            cliwa->cmd_list->next = pchar_split(climsg, BREAK_LINE);
 
         flush_commands(cliwa);
     }
@@ -256,40 +248,35 @@ void *chatserver_clienttalk(void *context)
 
 void flush_commands(clientwa_t *cliwa)
 {
-    string_ll_t *curr = cliwa->cmd_list->next;
-    const char *s;
+    pchar_ll_t *curr = cliwa->cmd_list->next;
 
     while (curr) {
-        s = string_get(curr->node);
-        printf("< %d:%s\n", cliwa->fd, s);
+        printf("< %d:%s\n", cliwa->fd, curr->node);
 
         switch (cliwa->last_cmd) {
             case CMD_NO_CODE:
                 switch (cliwa->level) {
                     case LEVEL_PASS:
-                        if (strcmp(s, CMD_PASS) == 0)
+                        if (strcmp(curr->node, CMD_PASS) == 0)
                             cliwa->last_cmd = CMD_PASS_CODE;
                         else
-                            string_ll_append(cliwa->msg_list,
-                                string_create(MSG_INVALID));
+                            pchar_ll_append(cliwa->msg_list, MSG_INVALID);
                         break;
                 }
 
-                if (strcmp(s, CMD_EXIT) == 0) {
+                if (strcmp(curr->node, CMD_EXIT) == 0) {
                     cliwa->exit = TRUE;
                 }
                 break;
 
             case CMD_PASS_CODE:
-                if (strcmp(s, cliwa->parent->pass) == 0) {
+                if (strcmp(curr->node, cliwa->parent->pass) == 0) {
                     cliwa->level++;
                     cliwa->last_cmd = CMD_NO_CODE;
-                    string_ll_append(cliwa->msg_list,
-                        string_create(MSG_OK));
+                    pchar_ll_append(cliwa->msg_list, MSG_PASS_OK);
                 }
                 else {
-                    string_ll_append(cliwa->msg_list,
-                        string_create(MSG_FAIL));
+                    pchar_ll_append(cliwa->msg_list, MSG_PASS_FAIL);
                 }
                 break;
         }
@@ -297,20 +284,18 @@ void flush_commands(clientwa_t *cliwa)
         curr = curr->next;
     }
 
-    string_ll_free(cliwa->cmd_list->next);
+    pchar_ll_free(cliwa->cmd_list->next);
     cliwa->cmd_list->next = NULL;
 }
 
 void flush_messages(clientwa_t *cliwa)
 {
-    string_ll_t *curr = cliwa->msg_list->next;
-    const char *s = NULL;
+    pchar_ll_t *curr = cliwa->msg_list->next;
 
     while (curr) {
-        s = string_get(curr->node);
-        printf("> %d:%s\n", cliwa->fd, s);
+        printf("> %d:%s\n", cliwa->fd, curr->node);
 
-        if (write(cliwa->fd, s, strlen(s)) < 0) {
+        if (write(cliwa->fd, curr->node, strlen(curr->node)) < 0) {
             perror("Cannot send message to client");
             break;
         }
@@ -322,7 +307,7 @@ void flush_messages(clientwa_t *cliwa)
         curr = curr->next;
     }
 
-    string_ll_free(cliwa->msg_list->next);
+    pchar_ll_free(cliwa->msg_list->next);
     cliwa->msg_list->next = NULL;
 }
 
