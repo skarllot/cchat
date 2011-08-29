@@ -39,9 +39,9 @@ int main(void)
     list_add(array, &e);
 
     show_array(array);
-    list_remove(array, 0);
+    list_remove_at(array, 0);
     show_array(array);
-    list_remove(array, 2);
+    list_remove(array, &d);
     show_array(array);
     list_trim(array);
     show_array(array);

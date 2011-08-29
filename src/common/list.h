@@ -65,11 +65,16 @@ int list_getcount(list_t *lst);
  */
 void list_insert(list_t *lst, int index, const void *item);
 /** Removes a item from array list.
+ * 
+ * @param item The item to remove.
+ */
+void list_remove(list_t *lst, const void *item);
+/** Removes a item from array list at specified index.
  *
  * @param index Item index to remove.
  * @return Removed item.
  */
-const void *list_remove(list_t *lst, int index);
+const void *list_remove_at(list_t *lst, int index);
 /** Sets a new item at specified index.
  *
  * @param index Item index to overwrite.

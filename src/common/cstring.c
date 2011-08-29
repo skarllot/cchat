@@ -172,9 +172,9 @@ string_ll_t *string_split(string_t *str, const char *delimiters)
 string_t *string_substring(string_t *str, int index, int length)
 {
     if (index + length > str->priv->length) {
-        // TODO: Needs a exception handler.
         fprintf(stderr, "Out of range substring\n");
-        exit(EXIT_FAILURE);
+        //exit(EXIT_FAILURE);
+        return NULL;
     }
 
     int realidx = strlen_utf8_bytes(str->priv->string, index);

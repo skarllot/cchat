@@ -32,6 +32,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+
+#include <pthread.h>
 #else
 #include "windef.h"
 #endif
@@ -64,6 +66,8 @@ struct _chatserver_it
     int serverfd;
     BOOLEAN stopping;
     list_t *clientwa_list;
+    // Locks concurrent access to clientwa_list
+    pthread_mutex_t m_cli_list;
     char *pass;
 };
 
@@ -71,17 +75,19 @@ typedef struct
 {
     chatserver_it *parent;
     int fd;
-    pchar_ll_t *cmd_list;
+    // List of messages from client to server
+    pchar_ll_t *read_list;
     int last_cmd;
-    pchar_ll_t *msg_list;
+    // List of messages from server to client
+    pchar_ll_t *write_list;
     BOOLEAN exit;
     int level;
 } clientwa_t;
 
 static void chatserver_acceptclients(chatserver_t *);
 static void *chatserver_clienttalk(void *context);
-static void flush_commands(clientwa_t *cliwa);
-static void flush_messages(clientwa_t *cliwa);
+static void flush_rdlist(clientwa_t *cliwa);
+static void flush_wrlist(clientwa_t *cliwa);
 
 chatserver_t *chatserver_create()
 {
@@ -93,25 +99,44 @@ chatserver_t *chatserver_create()
     csrv->priv->stopping = FALSE;
     csrv->priv->clientwa_list = list_create(-1);
     csrv->priv->pass = NULL;
+
+    if (pthread_mutex_init(&csrv->priv->m_cli_list, NULL) != 0) {
+        perror("Cannot initializate m_cli_list mutex");
+        exit(EXIT_FAILURE);
+    }
+
     return csrv;
 }
 
 void chatserver_free(chatserver_t *csrv)
 {
+    // Prevents undefined behavior
+    if (csrv->priv->stopping == FALSE) {
+        perror("Cannot free chatserver_t running instance");
+        return;
+    }
+
+    pthread_mutex_lock(&csrv->priv->m_cli_list);
     int count = list_getcount(csrv->priv->clientwa_list);
     int i;
     for (i = count - 1; i >= 0; --i) {
-        clientwa_t *item = (clientwa_t *)list_remove(
+        clientwa_t *item = (clientwa_t *)list_remove_at(
             csrv->priv->clientwa_list, i);
 
         if (item->fd >= 0)
             close(item->fd);
-        pchar_ll_free(item->cmd_list);
-        pchar_ll_free(item->msg_list);
+        pchar_ll_free(item->read_list);
+        pchar_ll_free(item->write_list);
         free(item);
     }
 
     list_free(csrv->priv->clientwa_list);
+    pthread_mutex_unlock(&csrv->priv->m_cli_list);
+    if (pthread_mutex_destroy(&csrv->priv->m_cli_list) != 0) {
+        perror("Cannot destroy m_cli_list mutex");
+        exit(EXIT_FAILURE);
+    }
+
     free(csrv->priv);
 
     free(csrv);
@@ -133,7 +158,7 @@ void chatserver_load(chatserver_t *csrv)
 #endif
     if (setsockopt(csrv->priv->serverfd, SOL_SOCKET, SO_REUSEADDR, &allowreuse,
                    sizeof(allowreuse)) == -1) {
-        perror("Cannot manipulate server socket");
+        perror("Cannot configure server socket");
         close(csrv->priv->serverfd);
         exit(EXIT_FAILURE);
     }
@@ -203,7 +228,9 @@ void chatserver_acceptclients(chatserver_t *csrv)
         }
         printf("Client %d connected.\n", cliwa->fd);
 
+        pthread_mutex_lock(&csrv->priv->m_cli_list);
         list_add(csrv->priv->clientwa_list, cliwa);
+        pthread_mutex_unlock(&csrv->priv->m_cli_list);
 
         pthread_t thread;
         pthread_create(&thread, NULL, chatserver_clienttalk, cliwa);
@@ -214,16 +241,16 @@ void *chatserver_clienttalk(void *context)
 {
     clientwa_t *cliwa = (clientwa_t *)context;
     cliwa->exit = FALSE;
-    MALLOC(cliwa->cmd_list, pchar_ll_t);
+    MALLOC(cliwa->read_list, pchar_ll_t);
     cliwa->last_cmd = CMD_NO_CODE;
-    MALLOC(cliwa->msg_list, pchar_ll_t);
+    MALLOC(cliwa->write_list, pchar_ll_t);
     cliwa->level = cliwa->parent->pass ? LEVEL_PASS : LEVEL_NICK;
 
     char *climsg = (char *)malloc(BUFFER_SIZE);
-    pchar_ll_append(cliwa->msg_list, MSG_WELCOME);
+    pchar_ll_append(cliwa->write_list, MSG_WELCOME);
 
     while (!cliwa->exit) {
-        flush_messages(cliwa);
+        flush_wrlist(cliwa);
 
         memset(climsg, 0, BUFFER_SIZE);
         if (read(cliwa->fd, climsg, BUFFER_SIZE - 1) < 0) {
@@ -232,24 +259,30 @@ void *chatserver_clienttalk(void *context)
         }
 
         if (strlen(climsg) > 0)
-            cliwa->cmd_list->next = pchar_split(climsg, BREAK_LINE);
+            cliwa->read_list->next = pchar_split(climsg, BREAK_LINE);
 
-        flush_commands(cliwa);
+        flush_rdlist(cliwa);
     }
 
     shutdown(cliwa->fd, SHUT_RDWR);
     close(cliwa->fd);
     printf("Client %d disconnected.\n", cliwa->fd);
 
-    // TODO: Remove from list
-    cliwa->fd = -1;
-    //free(context);
+    pthread_mutex_lock(&cliwa->parent->m_cli_list);
+    list_remove(cliwa->parent->clientwa_list, cliwa);
+    pthread_mutex_unlock(&cliwa->parent->m_cli_list);
+    
+    cliwa->parent = NULL;
+    pchar_ll_free(cliwa->read_list);
+    pchar_ll_free(cliwa->write_list);
+    free(cliwa);
+
     pthread_exit(NULL);
 }
 
-void flush_commands(clientwa_t *cliwa)
+void flush_rdlist(clientwa_t *cliwa)
 {
-    pchar_ll_t *curr = cliwa->cmd_list->next;
+    pchar_ll_t *curr = cliwa->read_list->next;
     int idx;
     char *cmd, *param;
 
@@ -271,14 +304,14 @@ void flush_commands(clientwa_t *cliwa)
                         if (strcmp(cmd, CMD_PASS) == 0 && param) {
                             if (strcmp(param, cliwa->parent->pass) == 0) {
                                 cliwa->level++;
-                                pchar_ll_append(cliwa->msg_list, MSG_PASS_OK);
+                                pchar_ll_append(cliwa->write_list, MSG_PASS_OK);
                             }
                             else {
-                                pchar_ll_append(cliwa->msg_list, MSG_PASS_FAIL);
+                                pchar_ll_append(cliwa->write_list, MSG_PASS_FAIL);
                             }
                         }
                         else
-                            pchar_ll_append(cliwa->msg_list, MSG_INVALID);
+                            pchar_ll_append(cliwa->write_list, MSG_INVALID);
 
                         break;
                 }
@@ -296,13 +329,13 @@ void flush_commands(clientwa_t *cliwa)
         curr = curr->next;
     }
 
-    pchar_ll_free(cliwa->cmd_list->next);
-    cliwa->cmd_list->next = NULL;
+    pchar_ll_free(cliwa->read_list->next);
+    cliwa->read_list->next = NULL;
 }
 
-void flush_messages(clientwa_t *cliwa)
+void flush_wrlist(clientwa_t *cliwa)
 {
-    pchar_ll_t *curr = cliwa->msg_list->next;
+    pchar_ll_t *curr = cliwa->write_list->next;
 
     while (curr) {
         printf("> %d:%s\n", cliwa->fd, curr->node);
@@ -319,7 +352,7 @@ void flush_messages(clientwa_t *cliwa)
         curr = curr->next;
     }
 
-    pchar_ll_free(cliwa->msg_list->next);
-    cliwa->msg_list->next = NULL;
+    pchar_ll_free(cliwa->write_list->next);
+    cliwa->write_list->next = NULL;
 }
 

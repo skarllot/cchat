@@ -31,6 +31,8 @@ struct _list_it
 
 // Allocs more space if requested size is greater than allocated
 static void list_alloc(list_t *lst, int size);
+// Get index of specified item from array list.
+static int list_getindex(list_t *lst, const void *item);
 // Check if requested index is a valid index into specified array list.
 static void list_validateindex(list_t *lst, int index);
 
@@ -80,6 +82,17 @@ const void *list_get(list_t *lst, int index)
     return lst->priv->data[index];
 }
 
+int list_getindex(list_t *lst, const void *item)
+{
+    int i, count = lst->priv->num_elements;
+    for (i = 0; i < count; i++) {
+        if (lst->priv->data[i] == item)
+            return i;
+    }
+
+    return -1;
+}
+
 int list_getcapacity(list_t *lst)
 {
     return lst->priv->num_allocated;
@@ -105,7 +118,18 @@ void list_insert(list_t *lst, int index, const void *item)
     lst->priv->num_elements++;
 }
 
-const void *list_remove(list_t *lst, int index)
+void list_remove(list_t *lst, const void *item)
+{
+    int index = list_getindex(lst, item);
+    if (index == -1) {
+        perror("Attempt to remove a not found item from list_t");
+        exit(EXIT_FAILURE);
+    }
+
+    list_remove_at(lst, index);
+}
+
+const void *list_remove_at(list_t *lst, int index)
 {
     list_validateindex(lst, index);
 
