@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Fabrício Godoy <skarllot@gmail.com>
+ * Copyright (C) 2010-2011 Fabrício Godoy <skarllot@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,22 +40,21 @@
 
 #define DEFAULT_PORT 1100
 #define BUFFER_SIZE 1024
+#define NICK_LEN_MIN 5
 
 #define BREAK_LINE "\n\r"
 
 #define CMD_NO_CODE -1
 #define CMD_EXIT "EXIT"
 #define CMD_PASS "PASS"
-//#define CMD_PASS_CODE 0
+#define CMD_NICK "NICK"
 
 #define MSG_WELCOME "!OK Connected (" PACKAGE_STRING ")"
 #define MSG_INVALID "!ERROR Invalid command"
 #define MSG_PASS_FAIL "!ERROR Wrong password"
 #define MSG_PASS_OK "!OK Password accepted"
-#define MSG_OK "OK"
-#define MSG_FAIL "FAIL"
-#define MSG_PASS "PASS?"
-#define MSG_NICK "NICK?"
+#define MSG_NICK_FAIL "!ERROR Invalid nick"
+#define MSG_NICK_OK "!OK Nick accepted"
 
 #define LEVEL_PASS 0
 #define LEVEL_NICK 1
@@ -77,11 +76,13 @@ typedef struct
     int fd;
     // List of messages from client to server
     pchar_ll_t *read_list;
+    // Handles multi-line commands
     int last_cmd;
     // List of messages from server to client
     pchar_ll_t *write_list;
-    BOOLEAN exit;
     int level;
+    char *nick;
+    BOOLEAN exit;
 } clientwa_t;
 
 static void chatserver_acceptclients(chatserver_t *);
@@ -313,6 +314,52 @@ void flush_rdlist(clientwa_t *cliwa)
                         else
                             pchar_ll_append(cliwa->write_list, MSG_INVALID);
 
+                        break;
+                    case LEVEL_NICK:
+                        if (strcmp(cmd, CMD_NICK) == 0 && param) {
+                            pchar_trim_spaces(param);
+                            if (strlen(param) < NICK_LEN_MIN) {
+                                pchar_ll_append(cliwa->write_list, MSG_NICK_FAIL);
+                                break;
+                            }
+                            
+                            char* newnick = pchar_copy(param);
+                            pchar_tolower(newnick);
+                            list_t *clilist = cliwa->parent->clientwa_list;
+                            
+                            pthread_mutex_lock(&cliwa->parent->m_cli_list);
+                            BOOLEAN valid = TRUE;
+                            int count = list_getcount(clilist);
+                            int i;
+                            for (i = 0; i < count; i++) {
+                                char *curr_nick = ((clientwa_t *)list_get(clilist, i))->nick;
+                                if (!curr_nick)
+                                    continue;
+                                
+                                curr_nick = pchar_copy(curr_nick);
+                                pchar_tolower(curr_nick);
+                                
+                                if (strcmp(newnick, curr_nick) == 0) {
+                                    valid = FALSE;
+                                    break;
+                                }
+                            }
+                            pthread_mutex_unlock(&cliwa->parent->m_cli_list);
+                            
+                            free(newnick);
+                            
+                            if (valid) {
+                                cliwa->nick = pchar_copy(param);
+                                printf("New nick: %s.\n", cliwa->nick);
+                                cliwa->level++;
+                                pchar_ll_append(cliwa->write_list, MSG_NICK_OK);
+                            }
+                            else {
+                                pchar_ll_append(cliwa->write_list, MSG_NICK_FAIL);
+                            }
+                        }
+                        else
+                            pchar_ll_append(cliwa->write_list, MSG_INVALID);
                         break;
                 }
 
