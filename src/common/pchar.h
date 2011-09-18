@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Fabrício Godoy <skarllot@gmail.com>
+ * Copyright (C) 2010-2011 Fabrício Godoy <skarllot@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,6 +56,14 @@ pchar_ll_t *pchar_split(const char *s, const char *delimiters);
  * @param length Substring length.
  */
 char *pchar_substring(const char *s, int index, int length);
+
+/** Converts string to lowercase.
+ */
+void pchar_tolower(char *s);
+
+/** Remove leading and trailing spaces from string.
+ */
+void pchar_trim_spaces(char *s);
 
 /** Append a string to linked list.
  *

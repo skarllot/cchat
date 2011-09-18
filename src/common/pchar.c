@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Fabrício Godoy <skarllot@gmail.com>
+ * Copyright (C) 2010-2011 Fabrício Godoy <skarllot@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "pchar.h"
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include "basic.h"
 
 void pchar_ll_free(pchar_ll_t *sll)
@@ -129,6 +130,52 @@ char *pchar_substring(const char *s, int index, int length)
     memcpy(newstr, &s[index], length);
 
     return newstr;
+}
+
+void pchar_tolower(char *s)
+{
+    register int i = 0;
+    while (s[i]) {
+        s[i] = tolower(s[i]);
+        i++;
+    }
+}
+
+void pchar_trim_spaces(char *s)
+{
+    register int i = 0;
+    int len = strlen(s);
+    int idx_f = -1, idx_l = -1;
+    
+    while (s[i]) {
+        if (!isspace(s[i])) {
+            idx_f = i;
+            break;
+        }
+        i++;
+    }
+    
+    // Empty string
+    if (idx_f == -1) {
+        s[0] = '\0';
+        return;
+    }
+    
+    i = len-1;
+    while (i != -1) {
+        if (!isspace(s[i])) {
+            idx_l = i;
+            break;
+        }
+        i--;
+    }
+    
+    if (idx_l - idx_f + 1 == len)
+        return;
+    
+    memmove(s, &s[idx_f], idx_l - idx_f + 1);
+    if (idx_l + 1 < len)
+        s[idx_l - idx_f + 1] = '\0';
 }
 
 void pchar_ll_append(pchar_ll_t *sll, const char *s)
