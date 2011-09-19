@@ -87,6 +87,9 @@ typedef struct
 
 static void chatserver_acceptclients(chatserver_t *);
 static void *chatserver_clienttalk(void *context);
+static int flush_level_global(clientwa_t *cliwa, const char *cmd, const char *param);
+static int flush_level_pass(clientwa_t *cliwa, const char *cmd, const char *param);
+static int flush_level_nick(clientwa_t *cliwa, const char *cmd, const char *param);
 static void flush_rdlist(clientwa_t *cliwa);
 static void flush_wrlist(clientwa_t *cliwa);
 
@@ -281,10 +284,88 @@ void *chatserver_clienttalk(void *context)
     pthread_exit(NULL);
 }
 
+int flush_level_global(clientwa_t *cliwa, const char *cmd, const char *param)
+{
+    if (strcmp(cmd, CMD_EXIT) == 0) {
+        cliwa->exit = TRUE;
+        return EXIT_SUCCESS;
+    }
+    
+    return EXIT_FAILURE;
+}
+
+int flush_level_pass(clientwa_t *cliwa, const char *cmd, const char *param)
+{
+    if (strcmp(cmd, CMD_PASS) == 0) {
+        if (param && strcmp(param, cliwa->parent->pass) == 0) {
+            cliwa->level++;
+            pchar_ll_append(cliwa->write_list, MSG_PASS_OK);
+        }
+        else
+            pchar_ll_append(cliwa->write_list, MSG_PASS_FAIL);
+        return EXIT_SUCCESS;
+    }
+    else
+        return EXIT_FAILURE;
+}
+
+int flush_level_nick(clientwa_t *cliwa, const char *cmd, const char *param)
+{
+    if (strcmp(cmd, CMD_NICK) == 0) {
+        if (!param) {
+            pchar_ll_append(cliwa->write_list, MSG_NICK_FAIL);
+            return EXIT_SUCCESS;
+        }
+        
+        pchar_trim_spaces(param);
+        if (strlen(param) < NICK_LEN_MIN) {
+            pchar_ll_append(cliwa->write_list, MSG_NICK_FAIL);
+            return EXIT_SUCCESS;
+        }
+        
+        char *newnick = pchar_copy(param);
+        pchar_tolower(newnick);
+        list_t *clilist = cliwa->parent->clientwa_list;
+        
+        pthread_mutex_lock(&cliwa->parent->m_cli_list);
+        BOOLEAN valid = TRUE;
+        int i, count = list_getcount(clilist);
+        
+        for (i = 0; i < count; i++) {
+            char *c_nick = ((clientwa_t *)list_get(clilist, i))->nick;
+            if (!c_nick)
+                continue;
+            
+            c_nick = pchar_copy(c_nick);
+            pchar_tolower(c_nick);
+            if (strcmp(newnick, c_nick) == 0) {
+                valid = FALSE;
+                break;
+            }
+        }
+        pthread_mutex_unlock(&cliwa->parent->m_cli_list);
+        
+        free(newnick);
+        
+        if (valid) {
+            cliwa->nick = pchar_copy(param);
+            cliwa->level++;
+            printf("New nick \"%s\" from client %d\n", cliwa->nick, cliwa->fd);
+            pchar_ll_append(cliwa->write_list, MSG_NICK_OK);
+        }
+        else
+            pchar_ll_append(cliwa->write_list, MSG_NICK_FAIL);
+        
+        return EXIT_SUCCESS;
+    }
+    else
+        return EXIT_FAILURE;
+}
+
 void flush_rdlist(clientwa_t *cliwa)
 {
     pchar_ll_t *curr = cliwa->read_list->next;
-    int idx;
+    int idx, ret;
     char *cmd, *param;
 
     while (curr) {
@@ -298,79 +379,19 @@ void flush_rdlist(clientwa_t *cliwa)
             param = &cmd[idx + 1];
         }
 
-        switch (cliwa->last_cmd) {
-            case CMD_NO_CODE:
-                switch (cliwa->level) {
-                    case LEVEL_PASS:
-                        if (strcmp(cmd, CMD_PASS) == 0 && param) {
-                            if (strcmp(param, cliwa->parent->pass) == 0) {
-                                cliwa->level++;
-                                pchar_ll_append(cliwa->write_list, MSG_PASS_OK);
-                            }
-                            else {
-                                pchar_ll_append(cliwa->write_list, MSG_PASS_FAIL);
-                            }
-                        }
-                        else
-                            pchar_ll_append(cliwa->write_list, MSG_INVALID);
-
-                        break;
-                    case LEVEL_NICK:
-                        if (strcmp(cmd, CMD_NICK) == 0 && param) {
-                            pchar_trim_spaces(param);
-                            if (strlen(param) < NICK_LEN_MIN) {
-                                pchar_ll_append(cliwa->write_list, MSG_NICK_FAIL);
-                                break;
-                            }
-                            
-                            char* newnick = pchar_copy(param);
-                            pchar_tolower(newnick);
-                            list_t *clilist = cliwa->parent->clientwa_list;
-                            
-                            pthread_mutex_lock(&cliwa->parent->m_cli_list);
-                            BOOLEAN valid = TRUE;
-                            int count = list_getcount(clilist);
-                            int i;
-                            for (i = 0; i < count; i++) {
-                                char *curr_nick = ((clientwa_t *)list_get(clilist, i))->nick;
-                                if (!curr_nick)
-                                    continue;
-                                
-                                curr_nick = pchar_copy(curr_nick);
-                                pchar_tolower(curr_nick);
-                                
-                                if (strcmp(newnick, curr_nick) == 0) {
-                                    valid = FALSE;
-                                    break;
-                                }
-                            }
-                            pthread_mutex_unlock(&cliwa->parent->m_cli_list);
-                            
-                            free(newnick);
-                            
-                            if (valid) {
-                                cliwa->nick = pchar_copy(param);
-                                printf("New nick: %s.\n", cliwa->nick);
-                                cliwa->level++;
-                                pchar_ll_append(cliwa->write_list, MSG_NICK_OK);
-                            }
-                            else {
-                                pchar_ll_append(cliwa->write_list, MSG_NICK_FAIL);
-                            }
-                        }
-                        else
-                            pchar_ll_append(cliwa->write_list, MSG_INVALID);
-                        break;
-                }
-
-                if (strcmp(curr->node, CMD_EXIT) == 0) {
-                    cliwa->exit = TRUE;
-                }
+        ret = EXIT_FAILURE;
+        switch (cliwa->level) {
+            case LEVEL_PASS:
+                ret = flush_level_pass(cliwa, cmd, param);
                 break;
+            case LEVEL_NICK:
+                ret = flush_level_nick(cliwa, cmd, param);
+                break;
+        }
 
-            /*case CMD_PASS_CODE:
-                
-                break;*/
+        if (ret == EXIT_FAILURE) {
+            if (flush_level_global(cliwa, cmd, param) == EXIT_FAILURE)
+                pchar_ll_append(cliwa->write_list, MSG_INVALID);
         }
 
         curr = curr->next;
