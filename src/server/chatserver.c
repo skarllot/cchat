@@ -48,6 +48,7 @@
 #define CMD_EXIT "EXIT"
 #define CMD_PASS "PASS"
 #define CMD_NICK "NICK"
+#define CMD_CHAT_LIST "LIST"
 
 #define MSG_WELCOME "!OK Connected (" PACKAGE_STRING ")"
 #define MSG_INVALID "!ERROR Invalid command"
@@ -55,10 +56,12 @@
 #define MSG_PASS_OK "!OK Password accepted"
 #define MSG_NICK_FAIL "!ERROR Invalid nick"
 #define MSG_NICK_OK "!OK Nick accepted"
+#define MSG_CHAT_LIST_OK "!OK List comming"
+#define MSG_END ".\n"
 
 #define LEVEL_PASS 0
 #define LEVEL_NICK 1
-#define LEVEL_MSG 2
+#define LEVEL_CHAT 2
 
 struct _chatserver_it
 {
@@ -90,6 +93,7 @@ static void *chatserver_clienttalk(void *context);
 static int flush_level_global(clientwa_t *cliwa, const char *cmd, const char *param);
 static int flush_level_pass(clientwa_t *cliwa, const char *cmd, const char *param);
 static int flush_level_nick(clientwa_t *cliwa, const char *cmd, const char *param);
+static int flush_level_chat(clientwa_t *cliwa, const char *cmd, const char *param);
 static void flush_rdlist(clientwa_t *cliwa);
 static void flush_wrlist(clientwa_t *cliwa);
 
@@ -362,6 +366,32 @@ int flush_level_nick(clientwa_t *cliwa, const char *cmd, const char *param)
         return EXIT_FAILURE;
 }
 
+int flush_level_chat(clientwa_t *cliwa, const char *cmd, const char *param)
+{
+    if (strcmp(cmd, CMD_CHAT_LIST) == 0) {
+        pchar_ll_append(cliwa->write_list, MSG_CHAT_LIST_OK);
+        list_t *clilist = cliwa->parent->clientwa_list;
+        
+        pthread_mutex_lock(&cliwa->parent->m_cli_list);
+        int i, count = list_getcount(clilist);
+        for (i = 0; i < count; i++) {
+            clientwa_t *c_cliwa = (clientwa_t *)list_get(clilist, i);
+            
+            if (c_cliwa->level != LEVEL_CHAT)
+                continue;
+            
+            pchar_ll_append(cliwa->write_list, c_cliwa->nick);
+        }
+        pthread_mutex_unlock(&cliwa->parent->m_cli_list);
+        
+        pchar_ll_append(cliwa->write_list, MSG_END);
+        
+        return EXIT_SUCCESS;
+    }
+    else
+        return EXIT_FAILURE;
+}
+
 void flush_rdlist(clientwa_t *cliwa)
 {
     pchar_ll_t *curr = cliwa->read_list->next;
@@ -386,6 +416,9 @@ void flush_rdlist(clientwa_t *cliwa)
                 break;
             case LEVEL_NICK:
                 ret = flush_level_nick(cliwa, cmd, param);
+                break;
+            case LEVEL_CHAT:
+                ret = flush_level_chat(cliwa, cmd, param);
                 break;
         }
 
