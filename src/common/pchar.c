@@ -38,6 +38,48 @@ void pchar_ll_free(pchar_ll_t *sll)
     }
 }
 
+char *pchar_concat(const char *s1, const char *s2)
+{
+    if (!s1 || strlen(s1) < 1)
+        return pchar_copy(s2);
+    
+    if (!s2 || strlen(s2) < 1)
+        return pchar_copy(s1);
+    
+    int slen1 = strlen(s1), slen2 = strlen(s2);
+    int slen = slen1 + slen2;
+    
+    char *newstr = (char *)malloc(slen + 1);
+    memset(newstr, 0, slen + 1);
+    memcpy(newstr, s1, slen1);
+    strcat(newstr, s2);
+    
+    return newstr;
+}
+
+char *pchar_concat_3(const char *s1, const char *s2, const char *s3)
+{
+    if (!s1 || strlen(s1) < 1)
+        return pchar_concat(s2, s3);
+    
+    if (!s2 || strlen(s2) < 1)
+        return pchar_concat(s1, s3);
+    
+    if (!s3 || strlen(s3) < 1)
+        return pchar_concat(s1, s2);
+    
+    int slen1 = strlen(s1), slen2 = strlen(s2), slen3 = strlen(s3);
+    int slen = slen1 + slen2 + slen3;
+    
+    char *newstr = (char *)malloc(slen + 1);
+    memset(newstr, 0, slen + 1);
+    memcpy(newstr, s1, slen1);
+    strcat(newstr, s2);
+    strcat(newstr, s3);
+    
+    return newstr;
+}
+
 char *pchar_copy(const char *s)
 {
     int slen = strlen(s);

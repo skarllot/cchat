@@ -41,6 +41,7 @@
 #define DEFAULT_PORT 1100
 #define BUFFER_SIZE 1024
 #define NICK_LEN_MIN 5
+#define WRITE_FLUSH_INTERVAL 100
 
 #define BREAK_LINE "\n\r"
 
@@ -62,6 +63,7 @@
 #define MSG_CHAT_BROAD_OK "!OK Broading message to all"
 #define MSG_END ".\n"
 
+#define LEVEL_EXITING -1
 #define LEVEL_PASS 0
 #define LEVEL_NICK 1
 #define LEVEL_CHAT 2
@@ -97,10 +99,10 @@ static void chatserver_acceptclients(chatserver_t *);
 static void *chatserver_clienttalk(void *context);
 static int flush_level_global(clientwa_t *cliwa, const char *cmd, const char *param);
 static int flush_level_pass(clientwa_t *cliwa, const char *cmd, const char *param);
-static int flush_level_nick(clientwa_t *cliwa, const char *cmd, const char *param);
+static int flush_level_nick(clientwa_t *cliwa, const char *cmd, char *param);
 static int flush_level_chat(clientwa_t *cliwa, const char *cmd, const char *param);
 static void flush_rdlist(clientwa_t *cliwa);
-static void flush_wrlist(clientwa_t *cliwa);
+static void *flush_wrlist(void *context);
 
 chatserver_t *chatserver_create()
 {
@@ -266,10 +268,11 @@ void *chatserver_clienttalk(void *context)
 
     char *climsg = (char *)malloc(BUFFER_SIZE);
     pchar_ll_append(cliwa->write_list, MSG_WELCOME);
+    
+    pthread_t th_wrlist;
+    pthread_create(&th_wrlist, NULL, flush_wrlist, cliwa);
 
     while (!cliwa->exit) {
-        flush_wrlist(cliwa);
-
         memset(climsg, 0, BUFFER_SIZE);
         if (read(cliwa->fd, climsg, BUFFER_SIZE - 1) < 0) {
             perror("Cannot receive message from client");
@@ -281,6 +284,10 @@ void *chatserver_clienttalk(void *context)
 
         flush_rdlist(cliwa);
     }
+    
+    pthread_mutex_lock(&cliwa->m_wrlist);
+    cliwa->level = LEVEL_EXITING;
+    pthread_mutex_unlock(&cliwa->m_wrlist);
 
     shutdown(cliwa->fd, SHUT_RDWR);
     close(cliwa->fd);
@@ -312,29 +319,40 @@ int flush_level_global(clientwa_t *cliwa, const char *cmd, const char *param)
 int flush_level_pass(clientwa_t *cliwa, const char *cmd, const char *param)
 {
     if (strcmp(cmd, CMD_PASS) == 0) {
+        pthread_mutex_lock(&cliwa->m_wrlist);
+        
         if (param && strcmp(param, cliwa->parent->pass) == 0) {
             cliwa->level++;
             pchar_ll_append(cliwa->write_list, MSG_PASS_OK);
         }
-        else
+        else {
             pchar_ll_append(cliwa->write_list, MSG_PASS_FAIL);
+        }
+        
+        pthread_mutex_unlock(&cliwa->m_wrlist);
         return EXIT_SUCCESS;
     }
     else
         return EXIT_FAILURE;
 }
 
-int flush_level_nick(clientwa_t *cliwa, const char *cmd, const char *param)
+int flush_level_nick(clientwa_t *cliwa, const char *cmd, char *param)
 {
     if (strcmp(cmd, CMD_NICK) == 0) {
         if (!param) {
+            pthread_mutex_lock(&cliwa->m_wrlist);
             pchar_ll_append(cliwa->write_list, MSG_NICK_FAIL);
+            pthread_mutex_unlock(&cliwa->m_wrlist);
+            
             return EXIT_SUCCESS;
         }
         
         pchar_trim_spaces(param);
         if (strlen(param) < NICK_LEN_MIN) {
+            pthread_mutex_lock(&cliwa->m_wrlist);
             pchar_ll_append(cliwa->write_list, MSG_NICK_FAIL);
+            pthread_mutex_unlock(&cliwa->m_wrlist);
+            
             return EXIT_SUCCESS;
         }
         
@@ -362,6 +380,8 @@ int flush_level_nick(clientwa_t *cliwa, const char *cmd, const char *param)
         
         free(newnick);
         
+        pthread_mutex_lock(&cliwa->m_wrlist);
+        
         if (valid) {
             cliwa->nick = pchar_copy(param);
             printf("New nick \"%s\" from client %d\n", cliwa->nick, cliwa->fd);
@@ -371,6 +391,7 @@ int flush_level_nick(clientwa_t *cliwa, const char *cmd, const char *param)
         else
             pchar_ll_append(cliwa->write_list, MSG_NICK_FAIL);
         
+        pthread_mutex_unlock(&cliwa->m_wrlist);
         return EXIT_SUCCESS;
     }
     else
@@ -381,8 +402,8 @@ int flush_level_chat(clientwa_t *cliwa, const char *cmd, const char *param)
 {
     if (strcmp(cmd, CMD_CHAT_LIST) == 0) {
         pthread_mutex_lock(&cliwa->m_wrlist);
+        
         pchar_ll_append(cliwa->write_list, MSG_CHAT_LIST_OK);
-        pthread_mutex_unlock(&cliwa->m_wrlist);
         
         list_t *clilist = cliwa->parent->clientwa_list;
         
@@ -394,16 +415,13 @@ int flush_level_chat(clientwa_t *cliwa, const char *cmd, const char *param)
             if (c_cliwa == cliwa || c_cliwa->level != LEVEL_CHAT)
                 continue;
             
-            pthread_mutex_lock(&cliwa->m_wrlist);
             pchar_ll_append(cliwa->write_list, c_cliwa->nick);
-            pthread_mutex_unlock(&cliwa->m_wrlist);
         }
         pthread_mutex_unlock(&cliwa->parent->m_cli_list);
         
-        pthread_mutex_lock(&cliwa->m_wrlist);
         pchar_ll_append(cliwa->write_list, MSG_END);
-        pthread_mutex_unlock(&cliwa->m_wrlist);
         
+        pthread_mutex_unlock(&cliwa->m_wrlist);
         return EXIT_SUCCESS;
     }
     else if (strcmp(cmd, CMD_CHAT_BROAD) == 0) {
@@ -420,6 +438,7 @@ int flush_level_chat(clientwa_t *cliwa, const char *cmd, const char *param)
         pthread_mutex_unlock(&cliwa->m_wrlist);
         
         list_t *clilist = cliwa->parent->clientwa_list;
+        char *msgheader = pchar_concat_3(CMD_CHAT_BROAD, " ", cliwa->nick);
         
         pthread_mutex_lock(&cliwa->parent->m_cli_list);
         int i, count = list_getcount(clilist);
@@ -435,11 +454,15 @@ int flush_level_chat(clientwa_t *cliwa, const char *cmd, const char *param)
                     continue;
                 }
 
+                pchar_ll_append(c_cliwa->write_list, msgheader);
                 pchar_ll_append(c_cliwa->write_list, param);
+                pchar_ll_append(c_cliwa->write_list, MSG_END);
                 pthread_mutex_unlock(&c_cliwa->m_wrlist);
             }
         }
         pthread_mutex_unlock(&cliwa->parent->m_cli_list);
+        
+        free(msgheader);
         return EXIT_SUCCESS;
     }
     else
@@ -491,28 +514,34 @@ void flush_rdlist(clientwa_t *cliwa)
     cliwa->read_list->next = NULL;
 }
 
-void flush_wrlist(clientwa_t *cliwa)
+void *flush_wrlist(void *context)
 {
-    pthread_mutex_lock(&cliwa->m_wrlist);
-    pchar_ll_t *curr = cliwa->write_list->next;
+    clientwa_t *cliwa = (clientwa_t *)context;
+    
+    while (cliwa->level != LEVEL_EXITING) {
+        pthread_mutex_lock(&cliwa->m_wrlist);
+        pchar_ll_t *curr = cliwa->write_list->next;
 
-    while (curr) {
-        printf("> %d:%s\n", cliwa->fd, curr->node);
+        while (curr) {
+            printf("> %d:%s\n", cliwa->fd, curr->node);
 
-        if (write(cliwa->fd, curr->node, strlen(curr->node)) < 0) {
-            perror("Cannot send message to client");
-            break;
+            if (write(cliwa->fd, curr->node, strlen(curr->node)) < 0) {
+                perror("Cannot send message to client");
+                break;
+            }
+            if (write(cliwa->fd, "\n", strlen("\n")) < 0) {
+                perror("Cannot send message to client");
+                break;
+            }
+
+            curr = curr->next;
         }
-        if (write(cliwa->fd, "\n", strlen("\n")) < 0) {
-            perror("Cannot send message to client");
-            break;
-        }
 
-        curr = curr->next;
+        pchar_ll_free(cliwa->write_list->next);
+        cliwa->write_list->next = NULL;
+        pthread_mutex_unlock(&cliwa->m_wrlist);
+        usleep(WRITE_FLUSH_INTERVAL);
     }
-
-    pchar_ll_free(cliwa->write_list->next);
-    cliwa->write_list->next = NULL;
-    pthread_mutex_unlock(&cliwa->m_wrlist);
+    
+    pthread_exit(NULL);
 }
-

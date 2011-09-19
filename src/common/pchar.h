@@ -31,24 +31,36 @@ struct _pchar_ll_t
 
 void pchar_ll_free(pchar_ll_t *sll);
 
+/** Concatenates two strings into new one.
+ */
+char *pchar_concat(const char *s1, const char *s2);
+
+/** Concatenates three strings into new one.
+ */
+char *pchar_concat_3(const char *s1, const char *s2, const char *s3);
+
 /** Gets a copy of specified string.
  */
 char *pchar_copy(const char *s);
+
 /** Gets the index of first occurrence of specified character.
  *
  * @param c A character to seek.
  */
 int pchar_index_of(const char *s, char c);
+
 /** Remove line breaks from string.
  *
  * @param s The string.
  */
 void pchar_remove_lbreaks(char *s);
+
 /** Split string into linked list tokens.
  *
  * @param delimiters Delimiters array.
  */
 pchar_ll_t *pchar_split(const char *s, const char *delimiters);
+
 /** Gets a substring from string.
  *
  * @param s The string.
